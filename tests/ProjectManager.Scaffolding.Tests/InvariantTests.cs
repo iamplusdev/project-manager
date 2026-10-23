@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ProjectManager.Scaffolding.IO;
 using ProjectManager.Scaffolding.Models;
+using ProjectManager.Scaffolding.Naming;
 using ProjectManager.Scaffolding.Scaffolding;
 
 namespace ProjectManager.Scaffolding.Tests;
@@ -22,6 +24,7 @@ public static class InvariantTests
         G4_PreflightGuards(light);
         G5_RollbackOnIoFailure(light);
         G6_EncodingAndSeparators(light);
+        G6b_CultureIndependentNaming();
         G7_NoUiDependency();
         G8_CancellationOnlyAtPhaseBoundary(light);
         G8b_RollbackFailureDegrades(light);
@@ -201,6 +204,43 @@ public static class InvariantTests
             .Concat(result.Placeholders)
             .Concat(result.Backups);
         Check.That(allPaths.All(path => !path.Contains('\\')), "G6：结果中的路径应统一使用 '/'");
+    }
+
+    // ── G6b 区域设置无关 ──────────────────────────────────────────────────
+    /// <summary>
+    /// 哨兵用例：宿主区域设置不得影响派生结果。
+    /// </summary>
+    /// <remarks>
+    /// 背景：可执行工程曾开启 <c>InvariantGlobalization</c> 以「保证确定性」，
+    /// 结果 WPF 首帧布局就抛 <c>Cannot find non-neutral culture related to 'en-us'</c>。
+    /// 开关撤掉后，确定性必须由代码层的显式不变文化承担（方案 2.4），
+    /// 本用例用土耳其语（<c>I</c>/<c>ı</c>/<c>i</c> 的大小写映射与不变文化不同）把它钉住：
+    /// 一旦有人把 <c>ToLowerInvariant</c> 写成 <c>ToLower</c>，这里立刻红。
+    /// </remarks>
+    private static void G6b_CultureIndependentNaming()
+    {
+        Check.Section("G6b 命名派生与区域设置无关（tr-TR 哨兵）");
+
+        const string projectName = "IIServerConfig";
+        var invariant = NameDeriver.Derive(projectName);
+
+        var original = CultureInfo.CurrentCulture;
+        NameDeriver.DerivedNames turkish;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+            turkish = NameDeriver.Derive(projectName);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+
+        Check.Equal("IiserverConfig", invariant.NamespaceText, "G6b：命名空间派生值应固定");
+        Check.Equal("iiserver-config", invariant.PackageText, "G6b：包名派生值应固定");
+        Check.Equal(invariant.NamespaceText, turkish.NamespaceText, "G6b：tr-TR 下命名空间不受影响");
+        Check.Equal(invariant.PackageText, turkish.PackageText, "G6b：tr-TR 下包名不受影响");
+        Check.Equal(invariant.DirectoryText, turkish.DirectoryText, "G6b：tr-TR 下目录名不受影响");
     }
 
     // ── G7 纯逻辑 ───────────────────────────────────────────────────────

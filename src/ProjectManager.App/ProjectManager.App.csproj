@@ -8,7 +8,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      刻意不设 <InvariantGlobalization>true</InvariantGlobalization>：
+      该开关会把进程切到「不变全球化」模式，WPF 文本栈拿不到区域性数据，
+      渲染首帧即抛 ArgumentException「Cannot find non-neutral culture related to 'en-us'」。
+      生成器的确定性改由代码层保证（InvariantCulture + ToLowerInvariant，见引擎命名与模板校验），
+      不依赖进程级开关；测试工程已验证这一点。
+    -->
     <RootNamespace>ProjectManager.App</RootNamespace>
     <AssemblyName>ProjectManager.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>

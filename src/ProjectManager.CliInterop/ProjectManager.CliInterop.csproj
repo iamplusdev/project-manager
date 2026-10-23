@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <InvariantGlobalization>true</InvariantGlobalization>
     <RootNamespace>ProjectManager.CliInterop</RootNamespace>
     <AssemblyName>ProjectManager.CliInterop</AssemblyName>
     <Version>0.2.0</Version>

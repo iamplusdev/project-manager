@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <InvariantGlobalization>true</InvariantGlobalization>
     <RootNamespace>ProjectManager.Scaffolding</RootNamespace>
     <AssemblyName>ProjectManager.Scaffolding</AssemblyName>
     <Version>0.1.0</Version>

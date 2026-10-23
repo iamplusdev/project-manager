@@ -7,7 +7,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <InvariantGlobalization>true</InvariantGlobalization>
     <RootNamespace>ProjectManager.Scaffolding.Tests</RootNamespace>
     <AssemblyName>ProjectManager.Scaffolding.Tests</AssemblyName>
   </PropertyGroup>
