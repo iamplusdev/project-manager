@@ -1,0 +1,194 @@
+<Window x:Class="ProjectManager.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Project_Manager"
+        Width="1040"
+        Height="680"
+        MinWidth="820"
+        MinHeight="480"
+        Background="{StaticResource PmBackgroundBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{StaticResource PmTopBarRowHeight}" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 顶栏（单行 44px，与设计稿一致） -->
+        <Border Grid.Row="0"
+                Background="{StaticResource PmSurfaceBrush}"
+                BorderBrush="{StaticResource PmBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid Margin="16,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="18" Height="18" CornerRadius="4" Background="{StaticResource PmAccentBrush}" />
+                    <TextBlock Margin="10,0,0,0"
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PmTextPrimaryBrush}"
+                               Text="Project_Manager" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="NewProjectButton"
+                            Height="28"
+                            Padding="14,0"
+                            Click="OnNewProjectClick"
+                            Content="新建项目"
+                            Style="{StaticResource PmPrimaryButton}"
+                            ToolTip="新建项目 (Ctrl+N)" />
+                    <Button Margin="6,0,0,0"
+                            Height="28"
+                            Click="OnSettingsClick"
+                            Content="设置"
+                            Style="{StaticResource PmGhostButton}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 主体 -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource PmSidebarColumnWidth}" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 侧栏：项目清单 -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource PmSurfaceBrush}"
+                    BorderBrush="{StaticResource PmBorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Margin="16,16,12,8">
+                        <TextBlock Style="{StaticResource PmCaption}" Text="项目" />
+                        <TextBlock HorizontalAlignment="Right"
+                                   Style="{StaticResource PmCaption}"
+                                   Text="{Binding Projects.Count}" />
+                    </Grid>
+
+                    <ListBox x:Name="ProjectListBox"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ItemContainerStyle="{StaticResource PmListBoxItem}"
+                             ItemsSource="{Binding Projects.Projects}"
+                             MouseDoubleClick="OnProjectDoubleClick"
+                             SelectedItem="{Binding Selected, Mode=TwoWay}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource PmTextPrimaryBrush}"
+                                               Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Margin="0,2,0,0"
+                                               Style="{StaticResource PmCaption}"
+                                               Text="{Binding LastOpenedAt, StringFormat='{}{0:MM-dd HH:mm}'}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- 内容区 -->
+            <Grid Grid.Column="1">
+                <!-- 降级提示（模板加载失败 / 清单损坏） -->
+                <Border VerticalAlignment="Top"
+                        Margin="24,16,24,0"
+                        Tag="Warning">
+                    <Border.Style>
+                        <Style BasedOn="{StaticResource PmInfoBar}" TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTemplateWarning}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Style="{StaticResource PmCaption}" Text="{Binding TemplateWarning}" />
+                </Border>
+
+                <!-- 空状态 -->
+                <Grid>
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasSelection}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <StackPanel MaxWidth="420"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                        <TextBlock HorizontalAlignment="Center"
+                                   Style="{StaticResource PmTitle}"
+                                   Text="还没有项目" />
+                        <TextBlock Margin="0,10,0,0"
+                                   HorizontalAlignment="Center"
+                                   Style="{StaticResource PmCaption}"
+                                   Text="{Binding EmptyHint}"
+                                   TextAlignment="Center" />
+                        <Button Margin="0,20,0,0"
+                                HorizontalAlignment="Center"
+                                Click="OnNewProjectClick"
+                                Content="新建项目"
+                                IsEnabled="{Binding CanScaffold}"
+                                Style="{StaticResource PmPrimaryButton}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- 项目概览 -->
+                <Grid Margin="24,20">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasSelection}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource PmTitle}" Text="{Binding SelectedName}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Style="{StaticResource PmCaption}"
+                                   Text="{Binding SelectedMeta}" />
+
+                        <Border Margin="0,16,0,0" Style="{StaticResource PmCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource PmSectionTitle}" Text="位置" />
+                                <TextBlock Margin="0,6,0,0"
+                                           Style="{StaticResource PmCaption}"
+                                           Text="{Binding SelectedPath}"
+                                           TextWrapping="Wrap" />
+                                <StackPanel Margin="0,14,0,0" Orientation="Horizontal">
+                                    <Button Click="OnOpenFolderClick"
+                                            Content="在资源管理器中打开"
+                                            Style="{StaticResource PmSecondaryButton}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Margin="0,18,0,0"
+                                   Style="{StaticResource PmCaption}"
+                                   Text="Git 工作台、组件识别与发版流水线按里程碑 M3 起逐步接入。" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

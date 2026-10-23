@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>ProjectManager.Application.Tests</RootNamespace>
+    <AssemblyName>ProjectManager.Application.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    与引擎测试一致：零 NuGet 依赖的控制台断言器，退出码即结果。
+    覆盖 M2 的两块核心：项目清单持久化（Storage）与向导状态机 + 生成注册闭环（Application）。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ProjectManager.Application\ProjectManager.Application.csproj" />
+    <ProjectReference Include="..\..\src\ProjectManager.CliInterop\ProjectManager.CliInterop.csproj" />
+    <ProjectReference Include="..\..\src\ProjectManager.Scaffolding\ProjectManager.Scaffolding.csproj" />
+    <ProjectReference Include="..\..\src\ProjectManager.Storage\ProjectManager.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

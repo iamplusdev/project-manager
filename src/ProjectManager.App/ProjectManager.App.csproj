@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>ProjectManager.App</RootNamespace>
+    <AssemblyName>ProjectManager.App</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.2.0</Version>
+    <Description>Project_Manager 桌面端：主壳 + 新建项目向导。</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ProjectManager.Application\ProjectManager.Application.csproj" />
+    <ProjectReference Include="..\ProjectManager.CliInterop\ProjectManager.CliInterop.csproj" />
+    <ProjectReference Include="..\ProjectManager.Scaffolding\ProjectManager.Scaffolding.csproj" />
+    <ProjectReference Include="..\ProjectManager.Storage\ProjectManager.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      随包分发的模板配置（只读来源，首次启动复制到 %APPDATA%）。
+      直接从引擎资源链接，避免维护两份相同 JSON：改一处即两处同步。
+    -->
+    <None Include="..\ProjectManager.Scaffolding\Resources\templates.default.json">
+      <Link>config\templates.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

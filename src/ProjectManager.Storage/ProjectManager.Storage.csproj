@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>ProjectManager.Storage</RootNamespace>
+    <AssemblyName>ProjectManager.Storage</AssemblyName>
+    <Version>0.2.0</Version>
+    <Description>项目注册与设置持久化：零 WPF 依赖，JSON 承载，原子写 + 损坏隔离。</Description>
+  </PropertyGroup>
+
+</Project>

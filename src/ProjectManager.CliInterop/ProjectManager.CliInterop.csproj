@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>ProjectManager.CliInterop</RootNamespace>
+    <AssemblyName>ProjectManager.CliInterop</AssemblyName>
+    <Version>0.2.0</Version>
+    <Description>外部命令封装（Git CLI 侧）：统一超时、输出捕获与错误归一。</Description>
+  </PropertyGroup>
+
+</Project>

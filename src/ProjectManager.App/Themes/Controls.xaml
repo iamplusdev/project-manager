@@ -1,0 +1,419 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        薄封装层（WP2.1）。
+        视图只引用这些 Pm* 键，不直接引用任何第三方控件命名空间。
+        将来若要换成 WPF-UI，只需替换本文件内各 Style 的 Template 实现，
+        视图中的 Style 键名与绑定路径全部不变。
+    -->
+
+    <!-- ── 文本 ────────────────────────────────────────────────────────── -->
+
+    <Style x:Key="PmText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+    </Style>
+
+    <Style x:Key="PmTitle" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="PmSectionTitle" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="PmCaption" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="PmErrorText" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource PmDangerBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- 行内错误：无错误时自动收起，避免占位导致表单跳动 -->
+    <Style x:Key="PmInlineError" TargetType="TextBlock" BasedOn="{StaticResource PmErrorText}">
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Style.Triggers>
+            <Trigger Property="Text" Value="">
+                <Setter Property="Visibility" Value="Collapsed" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ── 按钮 ────────────────────────────────────────────────────────── -->
+
+    <Style x:Key="PmButtonBase" TargetType="Button">
+        <Setter Property="Height" Value="{StaticResource PmControlHeight}" />
+        <Setter Property="MinWidth" Value="80" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.88" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.74" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.35" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PmPrimaryButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
+        <Setter Property="Background" Value="{StaticResource PmAccentBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PmAccentTextBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style x:Key="PmSecondaryButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
+        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="PmGhostButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
+
+    <Style x:Key="PmDangerButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
+        <Setter Property="Background" Value="{StaticResource PmDangerBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PmAccentTextBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- ── 输入 ────────────────────────────────────────────────────────── -->
+
+    <Style x:Key="PmTextBox" TargetType="TextBox">
+        <Setter Property="MinHeight" Value="{StaticResource PmControlHeight}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CaretBrush" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SelectionBrush" Value="{StaticResource PmAccentBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PmSurfaceAltBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource PmTextDisabledBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PmCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Border x:Name="Box"
+                                Width="18"
+                                Height="18"
+                                Background="{StaticResource PmSurfaceBrush}"
+                                BorderBrush="{StaticResource PmBorderStrongBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                VerticalAlignment="Center">
+                            <Path x:Name="Check"
+                                  Width="10"
+                                  Height="10"
+                                  Data="M 1,5 L 4,8 L 9,2"
+                                  Stroke="{StaticResource PmAccentTextBrush}"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  Visibility="Collapsed" />
+                        </Border>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PmRadioButton" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,0,0">
+                            <Ellipse x:Name="Ring"
+                                     Fill="{StaticResource PmSurfaceBrush}"
+                                     Stroke="{StaticResource PmBorderStrongBrush}"
+                                     StrokeThickness="1" />
+                            <Ellipse x:Name="Dot"
+                                     Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource PmAccentBrush}"
+                                     Visibility="Collapsed" />
+                        </Grid>
+                        <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource PmAccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── 容器 ────────────────────────────────────────────────────────── -->
+    <Style x:Key="PmCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style x:Key="PmListCard" TargetType="Border" BasedOn="{StaticResource PmCard}">
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <!-- 提示条：Tag 取 Info（默认）/ Warning / Error / Success -->
+    <Style x:Key="PmInfoBar" TargetType="Border">
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+        <Style.Triggers>
+            <Trigger Property="Tag" Value="Warning">
+                <Setter Property="Background" Value="{StaticResource PmWarningSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource PmWarningBrush}" />
+            </Trigger>
+            <Trigger Property="Tag" Value="Error">
+                <Setter Property="Background" Value="{StaticResource PmDangerSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource PmDangerBrush}" />
+            </Trigger>
+            <Trigger Property="Tag" Value="Success">
+                <Setter Property="Background" Value="{StaticResource PmSuccessSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource PmSuccessBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ── 模板卡片（单选） ─────────────────────────────────────────────── -->
+
+    <Style x:Key="PmTemplateCard" TargetType="RadioButton">
+        <Setter Property="GroupName" Value="PmTemplateGroup" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Root"
+                            Background="{StaticResource PmSurfaceBrush}"
+                            BorderBrush="{StaticResource PmBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="14">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── 树 / 滚动 ───────────────────────────────────────────────────── -->
+
+    <Style x:Key="PmTreeView" TargetType="TreeView">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+
+    <Style x:Key="PmProgressBar" TargetType="ProgressBar">
+        <Setter Property="Height" Value="3" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="{StaticResource PmSurfaceAltBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource PmAccentBrush}" />
+    </Style>
+
+    <Style x:Key="PmSeparator" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="Margin" Value="0,8" />
+    </Style>
+
+    <!-- ── 列表 ────────────────────────────────────────────────────────── -->
+
+    <Style x:Key="PmListBox" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="KeyboardNavigation.DirectionalNavigation" Value="Contained" />
+    </Style>
+
+    <!-- 模板卡片容器（ListBox 单选，选中态即 Step 1 的卡片高亮） -->
+    <Style x:Key="PmTemplateCardItem" TargetType="ListBoxItem">
+        <Setter Property="Margin" Value="0,0,10,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Root"
+                            Background="{StaticResource PmSurfaceBrush}"
+                            BorderBrush="{StaticResource PmBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="14">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PmListBoxItem" TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="8,0,8,2" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Root"
+                            Background="Transparent"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmSurfaceHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderThickness" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
