@@ -161,8 +161,19 @@ dotnet run --project tests/ProjectManager.Scaffolding.Tests
 
 ---
 
-## 7. 需要决策的一项遗留
+## 7. 原遗留项：骨架裁剪（已决策）
 
 评审报告 P8 建议裁剪 `apps/packages/contracts/infra` 这套多端骨架（对单机桌面工具是多余维护税）。M1 只使用了 `src/` 与 `tests/`，这些目录仍是空占位。
 
-建议在 M2 开工前定夺：**保留**（若未来确有 Web/移动端组件）或**裁剪**（只留 `src/tests/docs/scripts/assets/output`）。裁剪不影响已交付代码，只影响 `structure.md` 与目录骨架。
+**决策（2026-10-23）：裁剪。** 四类空骨架已删除，仓库结构收敛为 `src/ tests/ docs/ scripts/ assets/ output/`。
+
+处置依据：
+
+| 原目录 | 处置 | 理由 |
+|---|---|---|
+| `apps/windows/` | 删除 | 单 App 不需要"多端"层；WPF 主程序落 `src/ProjectManager.App` |
+| `packages/*` | 删除 | 四个子包无消费方；出现第二端再抽包 |
+| `contracts/*` | 删除 | api / protobuf 均空，本产品无跨进程契约需求 |
+| `infra/*` | 删除 | docker / nginx / database 均空，单机工具无部署面 |
+
+重新引入门槛：出现**第二端或服务端组件**且**有真实内容与非空消费方**时才恢复对应目录，不恢复空占位。裁剪对已交付代码零影响（引擎不引用这些路径；模板 JSON 里的 `apps/*` 是生成到用户目标目录的内容，与本仓库结构无关）。

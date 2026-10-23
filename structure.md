@@ -17,22 +17,7 @@ Project_Manager/
 │   └── fixtures/
 │       ├── tools/
 │       └── forge-baseline/
-├── apps/
-│   └── windows/
-├── contracts/
-│   ├── api/
-│   └── protobuf/
-├── packages/
-│   ├── ui-web/
-│   ├── utils-js/
-│   ├── config/
-│   └── shared-models/
-├── infra/
-│   ├── docker/
-│   ├── nginx/
-│   └── database/
 ├── output/
-│   └── windows-exe/
 ├── assets/
 │   ├── design/
 │   └── icons/
@@ -44,8 +29,8 @@ Project_Manager/
 
 - `.gitattributes` : 行尾策略（`* text=auto`），避免跨平台 diff 噪音。
 - `.gitignore` : 排除 `output/`、`.workbuddy/`、`bin/`、`obj/`、`.vs/` 等。
-- `ProjectManager.sln` : 解决方案入口；当前含脚手架引擎与引擎测试两个项目。
-- `src` : 可编译源码根目录。
+- `ProjectManager.sln` : 解决方案入口；当前含脚手架引擎与引擎测试两个项目。M2 起追加 `src/ProjectManager.App`（WPF 表现层）。
+- `src` : 可编译源码根目录；**所有 .NET 项目都放在这里**。
 - `src/ProjectManager.Scaffolding` : 脚手架生成引擎（零 UI / 零存储依赖，可无界面单测）。
 - `src/ProjectManager.Scaffolding/IO` : 文件系统与时钟抽象，支撑故障注入与确定性测试。
 - `src/ProjectManager.Scaffolding/Models` : 模板、模块、生成请求/结果、错误码等领域模型。
@@ -59,24 +44,24 @@ Project_Manager/
 - `tests/fixtures` : 测试固件（不可随意改动的判定基线）。
 - `tests/fixtures/tools` : 基线生成工具（`forge_baseline.py` 及其模板配置）。
 - `tests/fixtures/forge-baseline` : 冻结的 Forge 等价基线（8 组快照，行为等价的唯一判定依据）。
-- `apps` : 应用层：存放所有可独立运行和部署的程序（多端）。
-- `apps/windows` : Windows 客户端（WPF 主程序，M2 起落地）。
 - `assets` : 资源层：全局设计资源与静态文件。
 - `assets/design` : Figma、PSD 等设计源文件。
-- `assets/icons` : 多端通用的图标、Logo。
-- `contracts` : 契约层：多端通信规范（如 Swagger YAML、Protobuf），确保各端接口一致。
-- `contracts/api` : API 接口定义文件。
-- `contracts/protobuf` : gRPC/Protobuf 协议文件。
+- `assets/icons` : 通用图标、Logo。
 - `docs` : 文档层：设计方案、评审报告、融合方案、开发计划等。
-- `infra` : 基础设施层：部署、运维、数据库相关配置。
-- `infra/database` : 数据库初始化 SQL、迁移脚本。
-- `infra/docker` : 存放各服务的 Dockerfile。
-- `infra/nginx` : 反向代理和静态资源服务器配置。
-- `output` : 产物层 (加入 .gitignore)：统一存放各端编译打包后的最终文件。
-- `output/windows-exe` : Windows 可执行文件。
-- `packages` : 共享包层：跨端复用的代码、UI 组件和配置，避免重复造轮子。
-- `packages/config` : 统一的 Lint 规则、代码格式化配置。
-- `packages/shared-models` : 多端共用的数据模型/类型定义。
-- `packages/ui-web` : Web 端共享的 UI 组件库。
-- `packages/utils-js` : 通用的 JS/TS 工具函数。
+- `output` : 产物层（已在 `.gitignore` 中排除）：统一存放编译打包后的最终文件，按端再分子目录。
 - `scripts` : 脚本层：跨语言的自动化命令，如一键安装、一键启动、一键打包。
+
+## 为什么没有 `apps/` `packages/` `contracts/` `infra/`
+
+本产品是**单机桌面工具**：只有一个可执行程序、没有服务端、没有第二端消费方。原先的多端骨架（`apps/` 多端应用、`packages/` 跨端共享包、`contracts/` 跨端契约、`infra/` nginx/docker/database）四类目录全为空占位，没有任何消费方，属于纯维护税。按评审报告 P8 / 4.1 裁剪，规则如下：
+
+| 原目录 | 处置 | 理由 |
+|---|---|---|
+| `apps/windows/` | 删除 | 单 App 不需要“多端”这一层；WPF 主程序直接落到 `src/ProjectManager.App` |
+| `packages/*` | 删除 | 四个子包（ui-web / utils-js / config / shared-models）无消费方；真出现第二端再抽包 |
+| `contracts/*` | 删除 | api / protobuf 均空；本产品无跨进程契约需求 |
+| `infra/*` | 删除 | docker / nginx / database 均空；单机工具无部署面 |
+
+**重新引入的门槛**：只有出现**第二端**（Web / 移动端）或**服务端组件**时才恢复对应目录，且恢复时必须同时有真实内容与非空消费方——不恢复空占位。此约定用于避免“骨架先行”再次发生。
+
+> 与被裁剪目录同名的 `apps/`、`contracts/` 等路径仍会出现在 `src/ProjectManager.Scaffolding/Resources/templates.default.json` 中，那是**模板生成到用户目标目录**的内容（如「全栈项目」模板），与本仓库自身结构无关。
