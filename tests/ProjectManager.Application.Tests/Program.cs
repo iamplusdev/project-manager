@@ -9,6 +9,7 @@ try
     ProjectListTests.Run();
     ComponentScannerTests.Run();
     GitStatusTests.Run();
+    RepositoryOverviewTests.Run();
     TemplateUpgradeTests.Run();
 }
 catch (Exception ex)

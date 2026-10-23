@@ -3,16 +3,18 @@ using System.IO;
 using ProjectManager.Application.Components;
 using ProjectManager.Application.Mvvm;
 using ProjectManager.Application.Projects;
+using ProjectManager.Application.Repositories;
 using ProjectManager.App.Services;
 using ProjectManager.Storage;
 
 namespace ProjectManager.App.ViewModels;
 
-/// <summary>侧栏主导航。M3 先开「项目」与「组件」两页。</summary>
+/// <summary>侧栏主导航。M3 开了「项目」「组件」「仓库」三页。</summary>
 public enum ShellSection
 {
     Projects,
     Components,
+    Repositories,
 }
 
 /// <summary>
@@ -28,6 +30,9 @@ public sealed class MainViewModel : ObservableObject
     private ShellSection _section = ShellSection.Projects;
     private IReadOnlyList<ProjectComponent> _components = Array.Empty<ProjectComponent>();
     private UpgradePlan? _upgradePlan;
+    private IReadOnlyList<RepositoryEntry> _repositories = Array.Empty<RepositoryEntry>();
+    private bool _isLoadingRepositories;
+    private int _repositoryVersion;
     private string _gitSummary = string.Empty;
     private bool _isLoadingFacts;
     private int _factsVersion;
@@ -80,7 +85,13 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
-            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection));
+            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection), nameof(IsRepositoriesSection));
+
+            // 切到仓库页即现查一遍：清单是"当下事实"，缓存只会在用户以为准确时骗人
+            if (value == ShellSection.Repositories)
+            {
+                _ = LoadRepositoriesAsync();
+            }
         }
     }
 
@@ -88,9 +99,13 @@ public sealed class MainViewModel : ObservableObject
 
     public bool IsComponentsSection => _section == ShellSection.Components;
 
+    public bool IsRepositoriesSection => _section == ShellSection.Repositories;
+
     public void ShowProjects() => Section = ShellSection.Projects;
 
     public void ShowComponents() => Section = ShellSection.Components;
+
+    public void ShowRepositories() => Section = ShellSection.Repositories;
 
     // ── 选中与主区三态 ───────────────────────────────────────────────────
 
@@ -212,8 +227,104 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    // ── 详情页的模板同步（WP3.5） ────────────────────────────────────────
+    // ── 仓库页（WP3.2 剩余：跨项目仓库清单） ──────────────────────────────
 
+    /// <summary>所有项目当下的仓库事实。进入页面即现查，不缓存、不落库。</summary>
+    public IReadOnlyList<RepositoryEntry> Repositories
+    {
+        get => _repositories;
+        private set
+        {
+            if (SetProperty(ref _repositories, value))
+            {
+                Raise(nameof(HasRepositories), nameof(RepositoryStatsText), nameof(RepositoryHint));
+            }
+        }
+    }
+
+    public bool IsLoadingRepositories
+    {
+        get => _isLoadingRepositories;
+        private set
+        {
+            if (SetProperty(ref _isLoadingRepositories, value))
+            {
+                Raise(nameof(RepositoryHint));
+            }
+        }
+    }
+
+    public bool HasRepositories => _repositories.Count > 0;
+
+    /// <summary>一行统计：仓库数 / 有改动 / 未初始化 / 不可用。文案口径在应用层，可单测。</summary>
+    public string RepositoryStatsText => RepositoryStats.From(_repositories).Text;
+
+    public string RepositoryHint
+    {
+        get
+        {
+            if (_isLoadingRepositories)
+            {
+                return "正在查询各项目的 Git 状态…";
+            }
+
+            if (_repositories.Count > 0)
+            {
+                return string.Empty;
+            }
+
+            return Projects.Projects.Count == 0
+                ? "还没有项目。生成或打开一个项目后，这里会列出它们的仓库状态。"
+                : "当前筛选下没有项目。清空顶栏搜索框再试。";
+        }
+    }
+
+    /// <summary>重新查一遍（页面上的「刷新」）。</summary>
+    public Task RefreshRepositoriesAsync() => LoadRepositoriesAsync();
+
+    private async Task LoadRepositoriesAsync()
+    {
+        var version = ++_repositoryVersion;
+
+        // 与项目列表同一份筛选条件：顶栏搜索是全局的，仓库页不该成为例外
+        var targets = Projects.VisibleProjects.ToList();
+        if (targets.Count == 0)
+        {
+            IsLoadingRepositories = false;
+            Repositories = Array.Empty<RepositoryEntry>();
+            return;
+        }
+
+        IsLoadingRepositories = true;
+
+        IReadOnlyList<RepositoryEntry> entries;
+        try
+        {
+            entries = await _context.Repositories.QueryAsync(targets).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            if (version == _repositoryVersion)
+            {
+                IsLoadingRepositories = false;
+                Repositories = targets
+                    .Select(project => RepositoryEntry.Unavailable(project, $"查询失败：{ex.Message}"))
+                    .ToList();
+            }
+
+            return;
+        }
+
+        if (version != _repositoryVersion)
+        {
+            return;
+        }
+
+        IsLoadingRepositories = false;
+        Repositories = entries;
+    }
+
+    // ── 详情页的模板同步（WP3.5） ────────────────────────────────────────
     /// <summary>与当前模板的对齐预览。只读比对，选中项目时计算。</summary>
     public UpgradePlan? UpgradePlan
     {
@@ -225,7 +336,7 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
-            Raise(nameof(UpgradeSummary), nameof(CanApplyUpgrade), nameof(MissingDirectories), nameof(HasMissingDirectories));
+            Raise(nameof(UpgradeSummary), nameof(CanApplyUpgrade), nameof(MissingDirectories), nameof(HasMissingDirectories), nameof(Modules), nameof(HasModules));
         }
     }
 
@@ -237,6 +348,11 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<string> MissingDirectories => _upgradePlan?.MissingDirectories ?? Array.Empty<string>();
 
     public bool HasMissingDirectories => MissingDirectories.Count > 0;
+
+    /// <summary>生成时勾选的模块（详情页展示"这个项目当初选了什么"，WP3.3）。</summary>
+    public IReadOnlyList<string> Modules => _upgradePlan?.Modules ?? Array.Empty<string>();
+
+    public bool HasModules => Modules.Count > 0;
 
     /// <summary>
     /// 执行"只加不删"补结构。返回结果供 UI 提示；执行后重新比对，提示自动变成"已对齐"。
@@ -398,5 +514,11 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Raise(nameof(ShowCards), nameof(ShowEmptyState), nameof(EmptyTitle), nameof(EmptyHint), nameof(HasSearchText));
+
+        // 清单变了（首次加载、生成新项目、导入、搜索过滤）而用户正停在仓库页：那一页的数据已经过期
+        if (_section == ShellSection.Repositories)
+        {
+            _ = LoadRepositoriesAsync();
+        }
     }
 }

@@ -64,6 +64,49 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="PmNavRepositories" TargetType="Button" BasedOn="{StaticResource PmNavButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsRepositoriesSection}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 仓库清单状态徽标：颜色只表达"要不要处理"，不表达技术分类 -->
+        <Style x:Key="PmRepoChip" TargetType="Border" BasedOn="{StaticResource PmChip}">
+            <Setter Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding StatusText}" Value="干净">
+                    <Setter Property="Background" Value="{DynamicResource PmSuccessSubtleBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusText}" Value="有改动">
+                    <Setter Property="Background" Value="{DynamicResource PmWarningSubtleBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusText}" Value="不可用">
+                    <Setter Property="Background" Value="{DynamicResource PmDangerSubtleBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PmRepoChipText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource PmTextSecondaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding StatusText}" Value="干净">
+                    <Setter Property="Foreground" Value="{DynamicResource PmSuccessBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusText}" Value="有改动">
+                    <Setter Property="Foreground" Value="{DynamicResource PmWarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding StatusText}" Value="不可用">
+                    <Setter Property="Foreground" Value="{DynamicResource PmDangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -266,7 +309,7 @@
                     BorderBrush="{DynamicResource PmBorderBrush}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
-                    <!-- 导航四项：仅「项目」已开放，其余按里程碑置灰（UI 方案 6.3） -->
+                    <!-- 导航五项：项目/组件/仓库已开放；历史/发版按里程碑置灰（UI 方案 6.3） -->
                     <StackPanel DockPanel.Dock="Top" Margin="8,10,8,6">
                         <Button Click="OnShowProjectsClick" Style="{StaticResource PmNavProjects}" ToolTip="项目">
                             <StackPanel Orientation="Horizontal">
@@ -278,6 +321,12 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE71D;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="组件" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="OnShowRepositoriesClick" Style="{StaticResource PmNavRepositories}" ToolTip="仓库清单：跨项目 Git 状态">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource PmIcon}" Text="&#xE8EF;" />
+                                <TextBlock Style="{StaticResource PmNavLabel}" Text="仓库" />
                             </StackPanel>
                         </Button>
                         <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="历史记录（M3 起开放）">
@@ -509,6 +558,31 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- 模块清单（WP3.3）：来自 .pm-scaffold.json 的生成记录，不猜 -->
+                        <Border Margin="0,12,0,0"
+                                Style="{StaticResource PmCard}"
+                                Visibility="{Binding HasModules, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource PmSectionTitle}" Text="模块" />
+                                <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding Modules}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,6,6" Style="{StaticResource PmChip}">
+                                                <TextBlock FontSize="10"
+                                                           Foreground="{DynamicResource PmAccentBrush}"
+                                                           Text="{Binding}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
                         <Border Margin="0,12,0,0" Style="{StaticResource PmCard}">
                             <StackPanel>
                                 <Grid>
@@ -630,6 +704,92 @@
                                                                Text="{Binding Kind}" />
                                                 </Border>
                                             </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ═══ 仓库页（G3：跨项目仓库清单） ═══ -->
+                <Grid Visibility="{Binding IsRepositoriesSection, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="24,20,24,10">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource PmSectionTitle}" Text="仓库" />
+                            <TextBlock Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource PmCaption}"
+                                       Text="{Binding RepositoryStatsText}" />
+                        </StackPanel>
+                        <Button Height="26"
+                                Padding="10,0"
+                                HorizontalAlignment="Right"
+                                Click="OnRefreshRepositoriesClick"
+                                Content="刷新"
+                                Style="{StaticResource PmSecondaryButton}"
+                                ToolTip="重新查询每个项目的 Git 状态（不读缓存）" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="1"
+                               Margin="24,8"
+                               Text="{Binding RepositoryHint}"
+                               TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasRepositories}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding HasRepositories, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl Margin="24,0,24,20" ItemsSource="{Binding Repositories}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,6" Style="{StaticResource PmCard}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock FontSize="13"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                               Text="{Binding Name}" />
+                                                    <Border Margin="8,0,0,0" Style="{StaticResource PmRepoChip}">
+                                                        <TextBlock Style="{StaticResource PmRepoChipText}" Text="{Binding StatusText}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Margin="0,3,0,0" Style="{StaticResource PmCaption}">
+                                                    <Run Text="{Binding FolderName, Mode=OneWay}" />
+                                                    <Run Text=" · " />
+                                                    <Run Text="{Binding DetailText, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1"
+                                                    Height="24"
+                                                    Padding="10,0"
+                                                    VerticalAlignment="Center"
+                                                    Click="OnOpenRepositoryProjectClick"
+                                                    Content="查看"
+                                                    Style="{StaticResource PmSecondaryButton}"
+                                                    ToolTip="在项目页打开这个项目" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

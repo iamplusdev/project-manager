@@ -23,8 +23,58 @@ public sealed class FakeGitRunner : IGitRunner
     /// <summary>详情页用的仓库状态；默认"不是仓库"，需要时由用例设定。</summary>
     public GitStatusSnapshot Status { get; set; } = GitStatusSnapshot.NotRepository();
 
-    public Task<GitStatusSnapshot> GetStatusAsync(string workingDirectory, CancellationToken cancellationToken = default)
-        => Task.FromResult(Status);
+    /// <summary>按路径指定的状态（大小写不敏感）。仓库清单用例要一次给多个项目不同状态。</summary>
+    public Dictionary<string, GitStatusSnapshot> StatusByPath { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>人为延迟，用于观测并发度。</summary>
+    public TimeSpan Delay { get; set; } = TimeSpan.Zero;
+
+    /// <summary>指定路径抛出的异常，用于验证"单个项目失败不影响整张清单"。</summary>
+    public Func<string, Exception?>? ThrowFor { get; set; }
+
+    public List<string> QueriedPaths { get; } = new();
+
+    /// <summary>观测到的最大并发查询数（验证限流是否真的生效）。</summary>
+    public int MaxObservedConcurrency { get; private set; }
+
+    private readonly object _gate = new();
+    private int _active;
+
+    public async Task<GitStatusSnapshot> GetStatusAsync(string workingDirectory, CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            _active++;
+            if (_active > MaxObservedConcurrency)
+            {
+                MaxObservedConcurrency = _active;
+            }
+
+            QueriedPaths.Add(workingDirectory);
+        }
+
+        try
+        {
+            if (Delay > TimeSpan.Zero)
+            {
+                await Task.Delay(Delay, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (ThrowFor?.Invoke(workingDirectory) is { } failure)
+            {
+                throw failure;
+            }
+
+            return StatusByPath.TryGetValue(workingDirectory, out var status) ? status : Status;
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _active--;
+            }
+        }
+    }
 }
 
 /// <summary>写入必失败的清单仓储，用于验证"文件已生成 + 可重试注册"的降级语义。</summary>

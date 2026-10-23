@@ -1,6 +1,7 @@
 using System.IO;
 using ProjectManager.Application.Components;
 using ProjectManager.Application.Projects;
+using ProjectManager.Application.Repositories;
 using ProjectManager.Application.Wizard;
 using ProjectManager.App.Theming;
 using ProjectManager.CliInterop;
@@ -49,6 +50,9 @@ public sealed class ShellContext
 
     /// <summary>模板升级检测与"只加不删"补结构。</summary>
     public required TemplateUpgradeService Upgrades { get; init; }
+
+    /// <summary>跨项目仓库清单（限流查 Git 状态）。</summary>
+    public required RepositoryOverview Repositories { get; init; }
 
     /// <summary>Git CLI 封装：生成时 init，详情页查实时状态。</summary>
     public required IGitRunner Git { get; init; }

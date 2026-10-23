@@ -9,6 +9,7 @@ using Microsoft.Win32;
 using ProjectManager.App.Services;
 using ProjectManager.App.ViewModels;
 using ProjectManager.Application.Projects;
+using ProjectManager.Application.Repositories;
 using ProjectManager.Storage;
 
 namespace ProjectManager.App.Views;
@@ -83,6 +84,32 @@ public partial class MainWindow : Window
     private void OnShowProjectsClick(object sender, RoutedEventArgs e) => _viewModel.ShowProjects();
 
     private void OnShowComponentsClick(object sender, RoutedEventArgs e) => _viewModel.ShowComponents();
+
+    private void OnShowRepositoriesClick(object sender, RoutedEventArgs e) => _viewModel.ShowRepositories();
+
+    /// <summary>仓库页「刷新」：清单是当下事实，用户手动重查一次。</summary>
+    private async void OnRefreshRepositoriesClick(object sender, RoutedEventArgs e)
+        => await _viewModel.RefreshRepositoriesAsync();
+
+    /// <summary>仓库页每行的「查看」：回到项目页并选中它（不是新开窗口）。</summary>
+    private void OnOpenRepositoryProjectClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: RepositoryEntry entry })
+        {
+            return;
+        }
+
+        _viewModel.ShowProjects();
+
+        var project = _viewModel.Projects.Projects.FirstOrDefault(item => item.Id == entry.ProjectId);
+        if (project is null)
+        {
+            ShowSnack("该项目已不在项目清单中，请刷新。");
+            return;
+        }
+
+        _viewModel.Selected = project;
+    }
 
     /// <summary>「补新增目录」：只加不删，执行完 SnackBar 说明补了什么。</summary>
     private void OnApplyUpgradeClick(object sender, RoutedEventArgs e)

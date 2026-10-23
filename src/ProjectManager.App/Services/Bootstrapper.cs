@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using ProjectManager.Application.Components;
 using ProjectManager.Application.Projects;
+using ProjectManager.Application.Repositories;
 using ProjectManager.Application.Wizard;
 using ProjectManager.App.Theming;
 using ProjectManager.CliInterop;
@@ -95,6 +96,7 @@ public static class Bootstrapper
             Importer = new ProjectImporter(repository),
             Components = new ComponentScanner(),
             Upgrades = new TemplateUpgradeService(),
+            Repositories = new RepositoryOverview(git),
             Git = git,
             Theme = theme,
             Repository = repository,

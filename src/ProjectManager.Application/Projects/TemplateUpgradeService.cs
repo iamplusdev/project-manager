@@ -31,6 +31,12 @@ public sealed class UpgradePlan
     /// <summary>缺失的空叶子目录所对应的占位文件（<c>.gitkeep</c>）。</summary>
     public IReadOnlyList<string> MissingPlaceholders { get; init; } = Array.Empty<string>();
 
+    /// <summary>
+    /// 生成时勾选的模块（来自 <c>.pm-scaffold.json</c>）。详情页据此展示"这个项目当初选了什么"，
+    /// 外部项目或元数据缺失时为空。
+    /// </summary>
+    public IReadOnlyList<string> Modules { get; init; } = Array.Empty<string>();
+
     /// <summary>可直接展示的结论。</summary>
     public string Message { get; init; } = string.Empty;
 
@@ -111,6 +117,7 @@ public sealed class TemplateUpgradeService
             return new UpgradePlan
             {
                 State = UpgradeState.UpToDate,
+                Modules = metadata.Modules,
                 Message = $"已与模板「{template.Title}」对齐。",
             };
         }
@@ -120,6 +127,7 @@ public sealed class TemplateUpgradeService
         return new UpgradePlan
         {
             State = UpgradeState.Outdated,
+            Modules = metadata.Modules,
             MissingDirectories = missingDirectories,
             MissingPlaceholders = missingPlaceholders,
             Message = missingDirectories.Count == 0
