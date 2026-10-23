@@ -1,7 +1,10 @@
 using System.IO;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using ProjectManager.App.Services;
 using ProjectManager.App.ViewModels;
@@ -15,6 +18,7 @@ public partial class MainWindow : Window
     private readonly ShellContext _context;
     private readonly MainViewModel _viewModel;
     private NewProjectWindow? _wizard;
+    private DispatcherTimer? _snackTimer;
 
     public MainWindow(ShellContext context)
     {
@@ -25,6 +29,10 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
 
         NewProjectButton.IsEnabled = context.CanScaffold;
+
+        // 侧栏折叠态是用户偏好，跨会话保持
+        _viewModel.IsSidebarCollapsed = context.Settings.SidebarCollapsed;
+        ApplySidebarWidth();
         UpdateThemeButton();
 
         Loaded += OnLoaded;
@@ -35,11 +43,8 @@ public partial class MainWindow : Window
     {
         try
         {
+            // 启动时不自动选中：主区默认展示「最近项目」卡片，用户点谁才看谁的详情
             await _viewModel.ReloadAsync();
-            if (_viewModel.Projects.Projects.Count > 0)
-            {
-                ProjectListBox.SelectedIndex = 0;
-            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -53,12 +58,64 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control)
+        if (Keyboard.Modifiers != ModifierKeys.Control)
         {
-            e.Handled = true;
-            _ = OpenWizardAsync();
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.N:
+                e.Handled = true;
+                _ = OpenWizardAsync();
+                break;
+
+            case Key.F:
+                e.Handled = true;
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+                break;
         }
     }
+
+    // ── 侧栏 ────────────────────────────────────────────────────────────
+
+    private async void OnToggleSidebarClick(object sender, RoutedEventArgs e)
+    {
+        _viewModel.IsSidebarCollapsed = !_viewModel.IsSidebarCollapsed;
+        ApplySidebarWidth();
+
+        _context.Settings.SidebarCollapsed = _viewModel.IsSidebarCollapsed;
+        await _context.SaveSettingsAsync();
+    }
+
+    private void ApplySidebarWidth()
+    {
+        var key = _viewModel.IsSidebarCollapsed ? "PmSidebarCollapsedWidth" : "PmSidebarColumnWidth";
+        SidebarColumn.Width = (GridLength)FindResource(key);
+    }
+
+    // ── 项目切换 ────────────────────────────────────────────────────────
+
+    private void OnSwitcherClick(object sender, RoutedEventArgs e) => SwitcherPopup.IsOpen = !SwitcherPopup.IsOpen;
+
+    private void OnSwitcherSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SwitcherList.SelectedItem is not null)
+        {
+            SwitcherPopup.IsOpen = false;
+        }
+    }
+
+    private void OnCardClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: StoredProject project })
+        {
+            _viewModel.Selected = project;
+        }
+    }
+
+    // ── 新建 / 打开 ─────────────────────────────────────────────────────
 
     private async void OnNewProjectClick(object sender, RoutedEventArgs e) => await OpenWizardAsync();
 
@@ -91,12 +148,14 @@ public partial class MainWindow : Window
                 await _viewModel.ReloadAsync();
 
                 // 生成成功后选中新项目，让"生成即注册"在界面上立即可见
-                var newest = _viewModel.Projects.Projects.FirstOrDefault();
+                var newest = _viewModel.Projects.VisibleProjects.FirstOrDefault();
                 if (newest is not null)
                 {
                     _viewModel.Selected = newest;
                     ProjectListBox.SelectedItem = newest;
                 }
+
+                ShowSnack(newest is null ? "项目已生成。" : $"「{newest.Name}」已生成并加入项目清单。");
             }
         }
         finally
@@ -104,31 +163,6 @@ public partial class MainWindow : Window
             _wizard = null;
             await _context.SaveSettingsAsync();
         }
-    }
-
-    private void OnProjectDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        if (_viewModel.Selected is { } project)
-        {
-            RevealInExplorer(project.Path);
-        }
-    }
-
-    private void OnOpenFolderClick(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel.Selected is { } project)
-        {
-            RevealInExplorer(project.Path);
-        }
-    }
-
-    private void OnSettingsClick(object sender, RoutedEventArgs e)
-    {
-        var window = new SettingsWindow(_context) { Owner = this };
-        window.ShowDialog();
-
-        // 设置里也能改主题，回来要对齐顶栏按钮
-        UpdateThemeButton();
     }
 
     /// <summary>「打开已有项目」：只登记，不复制/移动目录内容。</summary>
@@ -160,10 +194,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 成功与"已在清单中"的可见结果相同：该条出现在列表顶部并被选中，故不再弹框打断
+        // 成功与"已在清单中"的可见结果相同（该条出现在列表顶部并被选中），用浮层提示而不打断
         if (result.Succeeded)
         {
             ProjectListBox.ScrollIntoView(_viewModel.Selected);
+            ShowSnack(result.Message);
             return;
         }
 
@@ -174,7 +209,8 @@ public partial class MainWindow : Window
             MessageBoxImage.Warning);
     }
 
-    /// <summary>顶栏主题按钮：跟随系统 → 浅色 → 深色 → 跟随系统。</summary>
+    // ── 主题 ────────────────────────────────────────────────────────────
+
     private async void OnThemeToggleClick(object sender, RoutedEventArgs e)
     {
         var next = _context.Theme.Current switch
@@ -187,19 +223,53 @@ public partial class MainWindow : Window
         _context.Theme.Apply(next);
         UpdateThemeButton();
         await _context.SaveSettingsAsync();
+
+        ShowSnack(next switch
+        {
+            ThemePreference.Light => "主题：浅色",
+            ThemePreference.Dark => "主题：深色",
+            _ => "主题：跟随系统",
+        });
     }
 
     private void UpdateThemeButton()
     {
         var (glyph, hint) = _context.Theme.Current switch
         {
-            ThemePreference.Light => ("○", "主题：浅色（点击切换）"),
-            ThemePreference.Dark => ("●", "主题：深色（点击切换）"),
-            _ => ("◐", "主题：跟随系统（点击切换）"),
+            ThemePreference.Light => ("\u25CB", "主题：浅色（点击切换）"),
+            ThemePreference.Dark => ("\u25CF", "主题：深色（点击切换）"),
+            _ => ("\u25D0", "主题：跟随系统（点击切换）"),
         };
 
         ThemeButton.Content = glyph;
         ThemeButton.ToolTip = hint;
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        var window = new SettingsWindow(_context) { Owner = this };
+        window.ShowDialog();
+
+        // 设置里也能改主题，回来要对齐顶栏按钮
+        UpdateThemeButton();
+    }
+
+    // ── 其它 ────────────────────────────────────────────────────────────
+
+    private void OnProjectDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (_viewModel.Selected is { } project)
+        {
+            RevealInExplorer(project.Path);
+        }
+    }
+
+    private void OnOpenFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.Selected is { } project)
+        {
+            RevealInExplorer(project.Path);
+        }
     }
 
     private void RevealInExplorer(string path)
@@ -226,5 +296,27 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
+    }
+
+    // ── SnackBar ────────────────────────────────────────────────────────
+
+    /// <summary>非阻塞提示：淡入后停留 2.6s 再淡出。连续调用会重置计时，不排队。</summary>
+    private void ShowSnack(string message)
+    {
+        SnackText.Text = message;
+        SnackHost.Visibility = Visibility.Visible;
+        SnackHost.BeginAnimation(OpacityProperty, new DoubleAnimation(0d, 1d, TimeSpan.FromMilliseconds(120)));
+
+        _snackTimer?.Stop();
+        _snackTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.6) };
+        _snackTimer.Tick += (_, _) =>
+        {
+            _snackTimer?.Stop();
+
+            var fade = new DoubleAnimation(1d, 0d, TimeSpan.FromMilliseconds(160));
+            fade.Completed += (_, _) => SnackHost.Visibility = Visibility.Collapsed;
+            SnackHost.BeginAnimation(OpacityProperty, fade);
+        };
+        _snackTimer.Start();
     }
 }

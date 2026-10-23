@@ -12,6 +12,7 @@ public sealed class ProjectListModel : ObservableObject
     private readonly IProjectRepository _repository;
     private readonly TimeProvider _time;
     private IReadOnlyList<StoredProject> _projects = Array.Empty<StoredProject>();
+    private string _searchText = string.Empty;
     private string? _warning;
     private bool _isLoading;
 
@@ -28,10 +29,35 @@ public sealed class ProjectListModel : ObservableObject
         {
             if (SetProperty(ref _projects, value))
             {
-                Raise(nameof(IsEmpty), nameof(Count), nameof(HasProjects));
+                Raise(nameof(IsEmpty), nameof(Count), nameof(HasProjects), nameof(VisibleProjects), nameof(HasVisibleProjects));
             }
         }
     }
+
+    /// <summary>
+    /// 顶栏搜索词。只影响 <see cref="VisibleProjects"/>，**不改变清单本身**，
+    /// 也不落库——关闭应用即遗忘，避免"上次搜索把列表筛空了"的困惑。
+    /// </summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (!SetProperty(ref _searchText, value ?? string.Empty))
+            {
+                return;
+            }
+
+            Raise(nameof(VisibleProjects), nameof(HasVisibleProjects), nameof(IsFiltering));
+        }
+    }
+
+    public bool IsFiltering => !string.IsNullOrWhiteSpace(_searchText);
+
+    /// <summary>按搜索词过滤后的视图（名称或路径命中，大小写不敏感）。</summary>
+    public IReadOnlyList<StoredProject> VisibleProjects => Filter(_projects);
+
+    public bool HasVisibleProjects => VisibleProjects.Count > 0;
 
     public bool IsEmpty => _projects.Count == 0;
 
@@ -103,5 +129,20 @@ public sealed class ProjectListModel : ObservableObject
         }
 
         return removed;
+    }
+
+    private IReadOnlyList<StoredProject> Filter(IReadOnlyList<StoredProject> source)
+    {
+        if (!IsFiltering)
+        {
+            return source;
+        }
+
+        var term = _searchText.Trim();
+        return source
+            .Where(project =>
+                project.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || project.Path.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
     }
 }

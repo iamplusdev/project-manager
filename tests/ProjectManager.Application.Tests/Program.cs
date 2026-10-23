@@ -6,6 +6,7 @@ try
     StorageTests.Run();
     WizardTests.Run();
     ImportTests.Run();
+    ProjectListTests.Run();
 }
 catch (Exception ex)
 {

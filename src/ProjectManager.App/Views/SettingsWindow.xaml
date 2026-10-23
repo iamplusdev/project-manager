@@ -4,7 +4,7 @@
         Title="设置"
         Width="540"
         Height="470"
-        Background="{StaticResource PmBackgroundBrush}"
+        Background="{DynamicResource PmBackgroundBrush}"
         FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -73,8 +73,8 @@
         </ScrollViewer>
 
         <Border Grid.Row="1"
-                Background="{StaticResource PmSurfaceBrush}"
-                BorderBrush="{StaticResource PmBorderBrush}"
+                Background="{DynamicResource PmSurfaceBrush}"
+                BorderBrush="{DynamicResource PmBorderBrush}"
                 BorderThickness="0,1,0,0">
             <Button Margin="0,0,24,0"
                     HorizontalAlignment="Right"

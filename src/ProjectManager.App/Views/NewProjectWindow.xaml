@@ -7,7 +7,7 @@
         Height="660"
         MinWidth="820"
         MinHeight="600"
-        Background="{StaticResource PmBackgroundBrush}"
+        Background="{DynamicResource PmBackgroundBrush}"
         FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
         ShowInTaskbar="False"
         TextOptions.TextFormattingMode="Display"
@@ -23,23 +23,23 @@
                                   ItemsSource="{Binding Children}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Width="16"
-                           Foreground="{StaticResource PmTextSecondaryBrush}"
+                           Foreground="{DynamicResource PmTextSecondaryBrush}"
                            Text="{Binding StatusGlyph}" />
                 <TextBlock Text="{Binding Name}">
                     <TextBlock.Style>
                         <Style BasedOn="{StaticResource PmText}" TargetType="TextBlock">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding Status}" Value="Backup">
-                                    <Setter Property="Foreground" Value="{StaticResource PmWarningBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PmWarningBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Status}" Value="Preserve">
-                                    <Setter Property="Foreground" Value="{StaticResource PmTextSecondaryBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PmTextSecondaryBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Status}" Value="Ignored">
-                                    <Setter Property="Foreground" Value="{StaticResource PmTextDisabledBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PmTextDisabledBrush}" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Status}" Value="Skip">
-                                    <Setter Property="Foreground" Value="{StaticResource PmTextDisabledBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PmTextDisabledBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -61,8 +61,8 @@
 
         <!-- 步骤条（48px，自绘） -->
         <Border Grid.Row="0"
-                Background="{StaticResource PmSurfaceBrush}"
-                BorderBrush="{StaticResource PmBorderBrush}"
+                Background="{DynamicResource PmSurfaceBrush}"
+                BorderBrush="{DynamicResource PmBorderBrush}"
                 BorderThickness="0,0,0,1">
             <Grid Margin="28,0">
                 <Grid.ColumnDefinitions>
@@ -88,7 +88,7 @@
                                Text="基本信息" />
                 </StackPanel>
 
-                <Border Grid.Column="1" Height="1" Margin="12,0" VerticalAlignment="Center" Background="{StaticResource PmBorderBrush}" />
+                <Border Grid.Column="1" Height="1" Margin="12,0" VerticalAlignment="Center" Background="{DynamicResource PmBorderBrush}" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Grid Width="22" Height="22">
@@ -105,7 +105,7 @@
                                Text="模板与模块" />
                 </StackPanel>
 
-                <Border Grid.Column="3" Height="1" Margin="12,0" VerticalAlignment="Center" Background="{StaticResource PmBorderBrush}" />
+                <Border Grid.Column="3" Height="1" Margin="12,0" VerticalAlignment="Center" Background="{DynamicResource PmBorderBrush}" />
 
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
                     <Grid Width="22" Height="22">
@@ -199,12 +199,12 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock FontSize="14"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource PmTextPrimaryBrush}"
+                                                   Foreground="{DynamicResource PmTextPrimaryBrush}"
                                                    Text="{Binding Title}" />
                                         <Border Margin="8,0,0,0"
                                                 Padding="6,1"
                                                 VerticalAlignment="Center"
-                                                Background="{StaticResource PmAccentBrush}"
+                                                Background="{DynamicResource PmAccentBrush}"
                                                 CornerRadius="3">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -217,7 +217,7 @@
                                                 </Style>
                                             </Border.Style>
                                             <TextBlock FontSize="10"
-                                                       Foreground="{StaticResource PmAccentTextBrush}"
+                                                       Foreground="{DynamicResource PmAccentTextBrush}"
                                                        Text="推荐" />
                                         </Border>
                                     </StackPanel>
@@ -470,8 +470,8 @@
 
         <!-- 底栏 -->
         <Border Grid.Row="2"
-                Background="{StaticResource PmSurfaceBrush}"
-                BorderBrush="{StaticResource PmBorderBrush}"
+                Background="{DynamicResource PmSurfaceBrush}"
+                BorderBrush="{DynamicResource PmBorderBrush}"
                 BorderThickness="0,1,0,0">
             <Grid Margin="24,0">
                 <TextBlock VerticalAlignment="Center"

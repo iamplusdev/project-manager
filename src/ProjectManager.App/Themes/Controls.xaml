@@ -11,7 +11,7 @@
     <!-- ── 文本 ────────────────────────────────────────────────────────── -->
 
     <Style x:Key="PmText" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
@@ -29,13 +29,13 @@
 
     <Style x:Key="PmCaption" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextSecondaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextSecondaryBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <Style x:Key="PmErrorText" TargetType="TextBlock" BasedOn="{StaticResource PmText}">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="{StaticResource PmDangerBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmDangerBrush}" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
@@ -90,30 +90,30 @@
     </Style>
 
     <Style x:Key="PmPrimaryButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
-        <Setter Property="Background" Value="{StaticResource PmAccentBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PmAccentTextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmAccentTextBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
     <Style x:Key="PmSecondaryButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
-        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PmBorderStrongBrush}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
     <Style x:Key="PmGhostButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="Padding" Value="10,0" />
     </Style>
 
     <Style x:Key="PmDangerButton" TargetType="Button" BasedOn="{StaticResource PmButtonBase}">
-        <Setter Property="Background" Value="{StaticResource PmDangerBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PmAccentTextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmDangerBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmAccentTextBrush}" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
@@ -124,13 +124,13 @@
         <Setter Property="Padding" Value="10,6" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
-        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PmBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CaretBrush" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="SelectionBrush" Value="{StaticResource PmAccentBrush}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource PmAccentBrush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -145,14 +145,14 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PmBorderStrongBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PmSurfaceAltBrush}" />
-                            <Setter Property="Foreground" Value="{StaticResource PmTextDisabledBrush}" />
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource PmTextDisabledBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -161,7 +161,7 @@
     </Style>
 
     <Style x:Key="PmCheckBox" TargetType="CheckBox">
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
         <Setter Property="Cursor" Value="Hand" />
@@ -173,8 +173,8 @@
                         <Border x:Name="Box"
                                 Width="18"
                                 Height="18"
-                                Background="{StaticResource PmSurfaceBrush}"
-                                BorderBrush="{StaticResource PmBorderStrongBrush}"
+                                Background="{DynamicResource PmSurfaceBrush}"
+                                BorderBrush="{DynamicResource PmBorderStrongBrush}"
                                 BorderThickness="1"
                                 CornerRadius="3"
                                 VerticalAlignment="Center">
@@ -182,7 +182,7 @@
                                   Width="10"
                                   Height="10"
                                   Data="M 1,5 L 4,8 L 9,2"
-                                  Stroke="{StaticResource PmAccentTextBrush}"
+                                  Stroke="{DynamicResource PmAccentTextBrush}"
                                   StrokeThickness="2"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round"
@@ -192,12 +192,12 @@
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Box" Property="Background" Value="{StaticResource PmAccentBrush}" />
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource PmAccentBrush}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                             <Setter TargetName="Check" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
@@ -209,7 +209,7 @@
     </Style>
 
     <Style x:Key="PmRadioButton" TargetType="RadioButton">
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
         <Setter Property="Cursor" Value="Hand" />
@@ -220,24 +220,24 @@
                     <StackPanel Orientation="Horizontal" Background="Transparent">
                         <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,0,0">
                             <Ellipse x:Name="Ring"
-                                     Fill="{StaticResource PmSurfaceBrush}"
-                                     Stroke="{StaticResource PmBorderStrongBrush}"
+                                     Fill="{DynamicResource PmSurfaceBrush}"
+                                     Stroke="{DynamicResource PmBorderStrongBrush}"
                                      StrokeThickness="1" />
                             <Ellipse x:Name="Dot"
                                      Width="8"
                                      Height="8"
-                                     Fill="{StaticResource PmAccentBrush}"
+                                     Fill="{DynamicResource PmAccentBrush}"
                                      Visibility="Collapsed" />
                         </Grid>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource PmAccentBrush}" />
                             <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource PmAccentBrush}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
@@ -250,8 +250,8 @@
 
     <!-- ── 容器 ────────────────────────────────────────────────────────── -->
     <Style x:Key="PmCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource PmSurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PmBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="16" />
@@ -267,20 +267,20 @@
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
         <Style.Triggers>
             <Trigger Property="Tag" Value="Warning">
-                <Setter Property="Background" Value="{StaticResource PmWarningSubtleBrush}" />
-                <Setter Property="BorderBrush" Value="{StaticResource PmWarningBrush}" />
+                <Setter Property="Background" Value="{DynamicResource PmWarningSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource PmWarningBrush}" />
             </Trigger>
             <Trigger Property="Tag" Value="Error">
-                <Setter Property="Background" Value="{StaticResource PmDangerSubtleBrush}" />
-                <Setter Property="BorderBrush" Value="{StaticResource PmDangerBrush}" />
+                <Setter Property="Background" Value="{DynamicResource PmDangerSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource PmDangerBrush}" />
             </Trigger>
             <Trigger Property="Tag" Value="Success">
-                <Setter Property="Background" Value="{StaticResource PmSuccessSubtleBrush}" />
-                <Setter Property="BorderBrush" Value="{StaticResource PmSuccessBrush}" />
+                <Setter Property="Background" Value="{DynamicResource PmSuccessSubtleBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource PmSuccessBrush}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -290,13 +290,13 @@
     <Style x:Key="PmTemplateCard" TargetType="RadioButton">
         <Setter Property="GroupName" Value="PmTemplateGroup" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
                     <Border x:Name="Root"
-                            Background="{StaticResource PmSurfaceBrush}"
-                            BorderBrush="{StaticResource PmBorderBrush}"
+                            Background="{DynamicResource PmSurfaceBrush}"
+                            BorderBrush="{DynamicResource PmBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="14">
@@ -304,15 +304,15 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmBorderStrongBrush}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                             <Setter TargetName="Root" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -325,7 +325,7 @@
     <Style x:Key="PmTreeView" TargetType="TreeView">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Foreground" Value="{StaticResource PmTextPrimaryBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto" />
@@ -334,13 +334,13 @@
     <Style x:Key="PmProgressBar" TargetType="ProgressBar">
         <Setter Property="Height" Value="3" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Background" Value="{StaticResource PmSurfaceAltBrush}" />
-        <Setter Property="Foreground" Value="{StaticResource PmAccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
     </Style>
 
     <Style x:Key="PmSeparator" TargetType="Border">
         <Setter Property="Height" Value="1" />
-        <Setter Property="Background" Value="{StaticResource PmBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource PmBorderBrush}" />
         <Setter Property="Margin" Value="0,8" />
     </Style>
 
@@ -363,8 +363,8 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
                     <Border x:Name="Root"
-                            Background="{StaticResource PmSurfaceBrush}"
-                            BorderBrush="{StaticResource PmBorderBrush}"
+                            Background="{DynamicResource PmSurfaceBrush}"
+                            BorderBrush="{DynamicResource PmBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="14">
@@ -372,12 +372,12 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmBorderStrongBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmBorderStrongBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                             <Setter TargetName="Root" Property="BorderThickness" Value="2" />
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -401,19 +401,139 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmSurfaceHoverBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmSurfaceHoverBrush}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Root" Property="Background" Value="{StaticResource PmAccentSubtleBrush}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource PmAccentBrush}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
                             <Setter TargetName="Root" Property="BorderThickness" Value="1" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ── 图标与导航（M3 / WP3.6）───────────────────────────────────────── -->
+
+    <!--
+      图标不引第三方字体包：Windows 10 自带 Segoe MDL2 Assets，Windows 11 自带 Segoe Fluent Icons，
+      两者码位基本一致，用逗号做字体回退即可。真缺字体时退化为方块，但每个图标按钮都有 ToolTip 与文字兜底。
+    -->
+    <FontFamily x:Key="PmIconFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+    <Style x:Key="PmIcon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource PmIconFontFamily}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+    </Style>
+
+    <Style x:Key="PmIconButton" TargetType="Button" BasedOn="{StaticResource PmGhostButton}">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmSurfaceHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmBorderBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 侧栏导航项：图标 + 文字，选中态用强调色浅底 -->
+    <Style x:Key="PmNavItem" TargetType="Button">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI" />
+        <Setter Property="Foreground" Value="{DynamicResource PmTextPrimaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource PmSurfaceHoverBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource PmTextDisabledBrush}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PmNavItemActive" TargetType="Button" BasedOn="{StaticResource PmNavItem}">
+        <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- 搜索框：左侧留出图标位，容器负责画放大镜 -->
+    <Style x:Key="PmSearchBox" TargetType="TextBox" BasedOn="{StaticResource PmTextBox}">
+        <Setter Property="Padding" Value="30,6,10,6" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
+        <Setter Property="MinHeight" Value="30" />
+    </Style>
+
+    <!-- 徽标（模板名 / 外部项目） -->
+    <Style x:Key="PmChip" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 最近项目卡片（UI 方案 6.3：128×88） -->
+    <Style x:Key="PmRecentCard" TargetType="Border">
+        <Setter Property="Width" Value="128" />
+        <Setter Property="Height" Value="88" />
+        <Setter Property="Margin" Value="0,0,10,10" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Background" Value="{DynamicResource PmSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PmBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource PmAccentBrush}" />
+                <Setter Property="Background" Value="{DynamicResource PmSurfaceHoverBrush}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
 </ResourceDictionary>

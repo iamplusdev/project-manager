@@ -32,6 +32,7 @@
     <!-- 布局尺寸必须是 GridLength：RowDefinition.Height / ColumnDefinition.Width 不接受 double -->
     <GridLength x:Key="PmTopBarRowHeight">44</GridLength>
     <GridLength x:Key="PmSidebarColumnWidth">200</GridLength>
+    <GridLength x:Key="PmSidebarCollapsedWidth">48</GridLength>
     <GridLength x:Key="PmStepBarRowHeight">48</GridLength>
 
 </ResourceDictionary>

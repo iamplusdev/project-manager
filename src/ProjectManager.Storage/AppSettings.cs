@@ -21,6 +21,9 @@ public sealed class AppSettings
 
     public ThemePreference Theme { get; set; } = ThemePreference.System;
 
+    /// <summary>侧栏是否折叠（只留图标导航）。</summary>
+    public bool SidebarCollapsed { get; set; }
+
     /// <summary>最近一次看到"模板来源已变"提示时的配置哈希，用于免重复提示。</summary>
     public string LastSeenTemplateHash { get; set; } = string.Empty;
 }

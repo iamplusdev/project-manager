@@ -87,9 +87,9 @@ Kind=Success  GitSucceeded=True  GitMsg="已初始化 Git 仓库"
 GIT-PROBE-PASS
 ```
 
-### 2.3 运行时发现并修掉的三个真实缺陷
+### 2.3 运行时发现并修掉的四个真实缺陷
 
-这三个都是**编译期无法发现**的，值得记录：
+这四个都是**编译期无法发现**的，值得记录：
 
 1. **主题字典用相对 URI 会依赖"入口程序集"**。`new Uri("Themes/Dark.xaml", UriKind.Relative)` 在自身 App 里正常，换任何宿主程序集就报 `找不到资源"themes/light.xaml"`。已改为绝对 pack URI（程序集名动态取自 `typeof(ThemeService).Assembly`）。这直接影响将来"拆控件库"或"被其他进程加载"的可复用性。
 2. **`RowDefinition.Height` 不接受 `sys:Double` 资源**。`<sys:Double x:Key="PmTopBarHeight">44</sys:Double>` 赋给 `GridLength` 属性会在加载时抛 `"44"不是属性"Height"的有效值`（WPF 不做 double→GridLength 隐式转换）。已拆成 `PmControlHeight`（double，供 `Height` 用）与 `PmTopBarRowHeight` / `PmSidebarColumnWidth` / `PmStepBarRowHeight`（GridLength，供布局用）。
@@ -99,6 +99,10 @@ GIT-PROBE-PASS
    - **修复**：撤掉全部工程的该开关；确定性改由代码层显式收敛（`ToLowerInvariant` / `CultureInfo.InvariantCulture` / `StringComparison.Ordinal`），并落到方案 2.4。
    - **回归哨兵**：新增 `G6b_CultureIndependentNaming`，在 `tr-TR`（`I`/`ı`/`i` 映射与不变文化不同）下跑命名派生并与不变文化结果比对。已按老规矩验证有效性：把 `ToLowerInvariant` 临时改成 `ToLower`，测试立刻报 `失败 2 项｜期望 "IiserverConfig"｜实际 "ııserverConfig"`，还原后 120 项全绿。
    - **启动复核**：`dotnet run --project src/ProjectManager.App` 后枚举进程可见窗口——只有一个 WPF 主窗口（1040×680，`enabled=True`），**无 `#32770` 错误对话框**，空态「还没有项目」正常渲染。
+4. **主题切换从来没真正生效过（M3/WP3.6 发现）**。点顶栏主题按钮，图标字形变了、`settings.json` 也写入了 `Dark`，但界面仍是浅色。
+   - **根因**：`ThemeService` 的做法是"替换 `MergedDictionaries[0]`"，而视图与样式里所有画刷都写成 `{StaticResource PmXxxBrush}`。`StaticResource` 在**加载时**就解析成具体 `Brush` 实例，之后换字典不会重新解析——只有代码赋值或绑定目标（图标字形）跟着变，视觉一律不动。
+   - **修复**：115 处画刷引用统一改为 `{DynamicResource PmXxxBrush}`（`Controls.xaml` 76 处 + 三个视图 39 处）。`DynamicResource` 在样式 Setter、ControlTemplate 触发器 Setter 里同样有效；`BasedOn`、尺寸令牌（`PmControlHeight` 等）仍用静态，避免无谓查找。
+   - **教训**：换肤实现与资源引用方式必须成对设计。此前只有静态检查（"两套令牌键集合一致"），没有"换肤后像素是否改变"的断言，所以一直没被发现。现在的验证方式是浅色/深色各截一张图比对。
 
 ### 2.4 收尾补齐（2026-10-23 晚，WP2.11）
 
