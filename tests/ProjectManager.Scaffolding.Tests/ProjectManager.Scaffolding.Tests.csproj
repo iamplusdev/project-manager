@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>ProjectManager.Scaffolding.Tests</RootNamespace>
+    <AssemblyName>ProjectManager.Scaffolding.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    刻意不使用 xunit/nunit：本仓库需在离线环境可构建可运行。
+    测试器是一个自包含的控制台断言器（退出码即结果），零 NuGet 依赖。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ProjectManager.Scaffolding\ProjectManager.Scaffolding.csproj" />
+  </ItemGroup>
+
+</Project>
