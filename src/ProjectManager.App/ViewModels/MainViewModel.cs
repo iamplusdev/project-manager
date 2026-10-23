@@ -71,4 +71,26 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanScaffold));
         OnPropertyChanged(nameof(HasTemplateWarning));
     }
+
+    /// <summary>
+    /// 把已有目录接入清单。成功后重载列表并选中该条，
+    /// 让"加进来"这件事在界面上立即可见（与生成后的处理一致）。
+    /// </summary>
+    public async Task<ImportResult> ImportAsync(string directory, CancellationToken cancellationToken = default)
+    {
+        var result = await _context.Importer.ImportAsync(directory, cancellationToken).ConfigureAwait(true);
+        if (!result.Succeeded)
+        {
+            return result;
+        }
+
+        await ReloadAsync(cancellationToken).ConfigureAwait(true);
+
+        if (result.Project is { } project)
+        {
+            Selected = Projects.Projects.FirstOrDefault(item => item.Id == project.Id) ?? project;
+        }
+
+        return result;
+    }
 }

@@ -53,10 +53,10 @@
 ```
 dotnet build                                      →  0 个警告  0 个错误
 dotnet run --project tests/ProjectManager.Scaffolding.Tests   →  全部通过：120 项断言
-dotnet run --project tests/ProjectManager.Application.Tests   →  全部通过：93 项断言
+dotnet run --project tests/ProjectManager.Application.Tests   →  全部通过：120 项断言
 ```
 
-`ProjectManager.Application.Tests` 覆盖（93 项）：
+`ProjectManager.Application.Tests` 覆盖（120 项）：
 
 - **Storage**：落盘/读回、同路径去重（保留 Id 与首次创建时间）、`Touch` 重排最近、删除、**损坏文件隔离后仍可继续写入**、原子写不残留 `.tmp`、设置往返、损坏设置回退默认
 - **Wizard**：初始状态（默认模板 = 单体桌面工具、模块全选、`CanGoNext=false`）、非法名称/保留名/超长拦截、路径不存在拦截、三步前进后退不丢数据、派生标识（`my project` → `MyProject` / `my-project`）、模块勾选联动预览目录数、目标已存在提示
@@ -99,6 +99,19 @@ GIT-PROBE-PASS
    - **修复**：撤掉全部工程的该开关；确定性改由代码层显式收敛（`ToLowerInvariant` / `CultureInfo.InvariantCulture` / `StringComparison.Ordinal`），并落到方案 2.4。
    - **回归哨兵**：新增 `G6b_CultureIndependentNaming`，在 `tr-TR`（`I`/`ı`/`i` 映射与不变文化不同）下跑命名派生并与不变文化结果比对。已按老规矩验证有效性：把 `ToLowerInvariant` 临时改成 `ToLower`，测试立刻报 `失败 2 项｜期望 "IiserverConfig"｜实际 "ııserverConfig"`，还原后 120 项全绿。
    - **启动复核**：`dotnet run --project src/ProjectManager.App` 后枚举进程可见窗口——只有一个 WPF 主窗口（1040×680，`enabled=True`），**无 `#32770` 错误对话框**，空态「还没有项目」正常渲染。
+
+### 2.4 收尾补齐（2026-10-23 晚，WP2.11）
+
+对照 UI 方案 §6.2 核对界面时发现两处**功能缺口**（不是观感问题），当场补掉；视觉统一并入 M3 的 WP3.6。
+
+| 缺口 | 补法 | 证据 |
+|---|---|---|
+| 「打开已有项目」无任何入口 | 新增 `Application/Projects/ProjectImporter`：路径归一（去尾分隔符 / 大小写不敏感）→ 目录存在性校验 → 采信 `.pm-scaffold.json` 的 `projectName`/`template` → 同路径不重复登记只提到最近 → 探测 `.git` → 写清单。UI 在空态加次按钮、侧栏头部加常驻「打开…」（有项目后空态消失，入口不能只放在空态里） | `ImportTests` 27 项断言：空路径/不存在目录被拒、普通目录按目录名登记、元数据采信、`.git` 探测、重复导入不产生第二条（尾分隔符与大小写变体同判）、损坏 JSON 回退目录名 |
+| 主题只能在设置页改 | 顶栏加循环按钮：跟随系统 → 浅色 → 深色 → 跟随系统，落盘到 `settings.json`；设置页改完回主壳同步按钮状态 | 启动截图可见顶栏 `◐` 与设置页三选一共用同一 `ThemeService` |
+
+**断言有效性**：临时让 `ReadMetadata` 恒返回 `null`，`ImportTests` 立刻报 4 项失败（项目名/模板名/生成标记/文案），还原后 120 项全绿。
+
+> 顺带记录一个 M3 前不打算动的事：主壳可见元素只占 UI 方案 §6.2 的约四成（无搜索、无项目切换、侧栏只有"项目"、空态无最近卡片、无图标体系）。这是**已知范围**，不是缺陷——WP3.6 一次性收口。
 
 ---
 

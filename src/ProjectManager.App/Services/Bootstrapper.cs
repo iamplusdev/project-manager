@@ -91,6 +91,7 @@ public static class Bootstrapper
             Generator = generator,
             Coordinator = coordinator,
             Projects = new ProjectListModel(repository),
+            Importer = new ProjectImporter(repository),
             Theme = theme,
             Repository = repository,
         };

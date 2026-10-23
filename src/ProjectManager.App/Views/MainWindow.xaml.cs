@@ -2,8 +2,11 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
 using ProjectManager.App.Services;
 using ProjectManager.App.ViewModels;
+using ProjectManager.Application.Projects;
+using ProjectManager.Storage;
 
 namespace ProjectManager.App.Views;
 
@@ -22,6 +25,7 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
 
         NewProjectButton.IsEnabled = context.CanScaffold;
+        UpdateThemeButton();
 
         Loaded += OnLoaded;
         PreviewKeyDown += OnPreviewKeyDown;
@@ -122,6 +126,80 @@ public partial class MainWindow : Window
     {
         var window = new SettingsWindow(_context) { Owner = this };
         window.ShowDialog();
+
+        // 设置里也能改主题，回来要对齐顶栏按钮
+        UpdateThemeButton();
+    }
+
+    /// <summary>「打开已有项目」：只登记，不复制/移动目录内容。</summary>
+    private async void OnOpenExistingClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "选择要加入项目清单的目录",
+            Multiselect = false,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        ImportResult result;
+        try
+        {
+            result = await _viewModel.ImportAsync(dialog.FolderName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this,
+                $"读取项目清单失败：\n\n{ex.Message}",
+                "Project_Manager",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        // 成功与"已在清单中"的可见结果相同：该条出现在列表顶部并被选中，故不再弹框打断
+        if (result.Succeeded)
+        {
+            ProjectListBox.ScrollIntoView(_viewModel.Selected);
+            return;
+        }
+
+        MessageBox.Show(this,
+            result.Message,
+            "Project_Manager",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+    /// <summary>顶栏主题按钮：跟随系统 → 浅色 → 深色 → 跟随系统。</summary>
+    private async void OnThemeToggleClick(object sender, RoutedEventArgs e)
+    {
+        var next = _context.Theme.Current switch
+        {
+            ThemePreference.System => ThemePreference.Light,
+            ThemePreference.Light => ThemePreference.Dark,
+            _ => ThemePreference.System,
+        };
+
+        _context.Theme.Apply(next);
+        UpdateThemeButton();
+        await _context.SaveSettingsAsync();
+    }
+
+    private void UpdateThemeButton()
+    {
+        var (glyph, hint) = _context.Theme.Current switch
+        {
+            ThemePreference.Light => ("○", "主题：浅色（点击切换）"),
+            ThemePreference.Dark => ("●", "主题：深色（点击切换）"),
+            _ => ("◐", "主题：跟随系统（点击切换）"),
+        };
+
+        ThemeButton.Content = glyph;
+        ThemeButton.ToolTip = hint;
     }
 
     private void RevealInExplorer(string path)

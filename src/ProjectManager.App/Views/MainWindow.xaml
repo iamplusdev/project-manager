@@ -42,6 +42,16 @@
                             Content="新建项目"
                             Style="{StaticResource PmPrimaryButton}"
                             ToolTip="新建项目 (Ctrl+N)" />
+                    <Button x:Name="ThemeButton"
+                            Width="28"
+                            Height="28"
+                            Margin="0,0,6,0"
+                            Padding="0"
+                            Click="OnThemeToggleClick"
+                            Content="◐"
+                            FontSize="14"
+                            Style="{StaticResource PmGhostButton}"
+                            ToolTip="主题：跟随系统（点击切换）" />
                     <Button Margin="6,0,0,0"
                             Height="28"
                             Click="OnSettingsClick"
@@ -64,11 +74,22 @@
                     BorderBrush="{StaticResource PmBorderBrush}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
-                    <Grid DockPanel.Dock="Top" Margin="16,16,12,8">
-                        <TextBlock Style="{StaticResource PmCaption}" Text="项目" />
-                        <TextBlock HorizontalAlignment="Right"
-                                   Style="{StaticResource PmCaption}"
-                                   Text="{Binding Projects.Count}" />
+                    <Grid DockPanel.Dock="Top" Margin="16,14,12,6">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource PmCaption}" Text="项目" />
+                            <TextBlock Margin="6,0,0,0"
+                                       Style="{StaticResource PmCaption}"
+                                       Text="{Binding Projects.Count}" />
+                        </StackPanel>
+
+                        <!-- 有项目后空态就消失了，所以常驻入口必须在这里 -->
+                        <Button Height="24"
+                                Padding="8,0"
+                                HorizontalAlignment="Right"
+                                Click="OnOpenExistingClick"
+                                Content="打开…"
+                                Style="{StaticResource PmSecondaryButton}"
+                                ToolTip="把已有目录加入项目清单" />
                     </Grid>
 
                     <ListBox x:Name="ProjectListBox"
@@ -140,12 +161,16 @@
                                    Style="{StaticResource PmCaption}"
                                    Text="{Binding EmptyHint}"
                                    TextAlignment="Center" />
-                        <Button Margin="0,20,0,0"
-                                HorizontalAlignment="Center"
-                                Click="OnNewProjectClick"
-                                Content="新建项目"
-                                IsEnabled="{Binding CanScaffold}"
-                                Style="{StaticResource PmPrimaryButton}" />
+                        <StackPanel Margin="0,20,0,0" HorizontalAlignment="Center" Orientation="Horizontal">
+                            <Button Click="OnNewProjectClick"
+                                    Content="新建项目"
+                                    IsEnabled="{Binding CanScaffold}"
+                                    Style="{StaticResource PmPrimaryButton}" />
+                            <Button Margin="8,0,0,0"
+                                    Click="OnOpenExistingClick"
+                                    Content="打开已有项目"
+                                    Style="{StaticResource PmSecondaryButton}" />
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
 

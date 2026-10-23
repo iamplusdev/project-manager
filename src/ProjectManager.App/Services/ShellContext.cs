@@ -39,6 +39,9 @@ public sealed class ShellContext
 
     public required IProjectRepository Repository { get; init; }
 
+    /// <summary>「打开已有项目」：把已存在的目录接入清单。</summary>
+    public required ProjectImporter Importer { get; init; }
+
     public bool CanScaffold => Templates.Count > 0;
 
     /// <summary>保存设置；失败只记录，不打断用户。</summary>

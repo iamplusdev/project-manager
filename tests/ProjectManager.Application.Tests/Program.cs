@@ -5,6 +5,7 @@ try
 {
     StorageTests.Run();
     WizardTests.Run();
+    ImportTests.Run();
 }
 catch (Exception ex)
 {
