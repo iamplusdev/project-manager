@@ -18,6 +18,7 @@ public static class Program
         try
         {
             var templates = BaselineEquivalence.Run();
+            TemplateValidationTests.Run();
             InvariantTests.Run(templates);
             BoundaryTests.Run(templates);
             PerformanceTests.Run();

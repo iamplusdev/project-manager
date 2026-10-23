@@ -296,6 +296,9 @@ public partial class MainWindow : Window
 
         // 设置里也能改主题，回来要对齐顶栏按钮
         UpdateThemeButton();
+
+        // 模板可能被导入/停用/重载过：新建按钮的可用性与告警横幅要跟着变
+        _viewModel.RefreshTemplateState();
     }
 
     // ── 其它 ────────────────────────────────────────────────────────────

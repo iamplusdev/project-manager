@@ -3,6 +3,7 @@ using System.Windows;
 using ProjectManager.Application.Components;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Repositories;
+using ProjectManager.Application.Templates;
 using ProjectManager.Application.Wizard;
 using ProjectManager.App.Theming;
 using ProjectManager.CliInterop;
@@ -42,37 +43,17 @@ public static class Bootstrapper
         var repository = new JsonProjectRepository(paths);
 
         var loader = TemplateLoader.CreateDefault(paths.TemplatesFile, paths.InstallTemplatesFile);
-        IReadOnlyDictionary<string, Template> templates = new Dictionary<string, Template>();
-        string? templateWarning = null;
-        var sourceText = "未加载";
+        TemplateLoadResult? loaded = null;
+        ScaffoldException? loadError = null;
 
         try
         {
             loader.TrySeedUserCopy();
-            var loaded = loader.Load();
-            templates = loaded.Templates;
-            sourceText = loaded.Source switch
-            {
-                TemplateSource.User => $"用户配置（{loaded.SourcePath}）",
-                TemplateSource.Install => $"安装目录（{loaded.SourcePath}）",
-                _ => "内置默认",
-            };
-
-            if (loaded.Warnings.Count > 0)
-            {
-                templateWarning = string.Join("；", loaded.Warnings);
-            }
+            loaded = loader.Load();
         }
         catch (ScaffoldException ex)
         {
-            templateWarning = $"[{ex.ErrorCode}] {ex.Message}";
-        }
-
-        if (bootWarnings.Count > 0)
-        {
-            templateWarning = templateWarning is null
-                ? string.Join("；", bootWarnings)
-                : $"{templateWarning}；{string.Join("；", bootWarnings)}";
+            loadError = ex;
         }
 
         var generator = new ScaffoldGenerator();
@@ -82,14 +63,12 @@ public static class Bootstrapper
         var theme = new ThemeService(application);
         theme.Apply(settings.Theme);
 
-        return new ShellContext
+        var context = new ShellContext
         {
             Paths = paths,
             Settings = settings,
             SettingsStore = settingsStore,
-            Templates = templates,
-            TemplateWarning = templateWarning,
-            TemplateSourceText = sourceText,
+            Library = new TemplateLibraryService(paths.TemplatesFile, loader),
             Generator = generator,
             Coordinator = coordinator,
             Projects = new ProjectListModel(repository),
@@ -101,6 +80,22 @@ public static class Bootstrapper
             Theme = theme,
             Repository = repository,
         };
+
+        if (loaded is not null)
+        {
+            context.ApplyTemplateLoad(loaded);
+        }
+        else if (loadError is not null)
+        {
+            context.MarkTemplateFailure(loadError);
+        }
+
+        if (bootWarnings.Count > 0)
+        {
+            context.AppendTemplateWarning(string.Join("；", bootWarnings));
+        }
+
+        return context;
     }
 
     /// <summary>

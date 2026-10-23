@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置"
         Width="540"
-        Height="470"
+        Height="620"
         Background="{DynamicResource PmBackgroundBrush}"
         FontFamily="Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI"
         ResizeMode="NoResize"
@@ -46,21 +46,78 @@
                            Margin="0,8,0,0"
                            Style="{StaticResource PmCaption}"
                            TextWrapping="Wrap" />
+
+                <ItemsControl x:Name="TemplateList" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock MinWidth="120"
+                                           Style="{StaticResource PmText}"
+                                           Text="{Binding Title}" />
+                                <TextBlock Grid.Column="1"
+                                           Margin="10,0,0,0"
+                                           Style="{StaticResource PmCaption}"
+                                           Text="{Binding Detail}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <TextBlock x:Name="TemplateWarningText"
                            Margin="0,6,0,0"
                            Style="{StaticResource PmErrorText}" />
+
                 <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                    <Button Click="OnOpenTemplateFolder"
-                            Content="打开配置文件夹"
-                            Style="{StaticResource PmSecondaryButton}" />
+                    <Button Click="OnImportTemplates"
+                            Content="导入模板…"
+                            Style="{StaticResource PmPrimaryButton}" />
                     <Button Margin="8,0,0,0"
                             Click="OnReloadTemplates"
-                            Content="重新加载模板"
+                            Content="重新加载"
+                            Style="{StaticResource PmSecondaryButton}" />
+                    <Button x:Name="DisableUserConfigButton"
+                            Margin="8,0,0,0"
+                            Click="OnDisableUserConfig"
+                            Content="停用用户配置"
+                            Style="{StaticResource PmSecondaryButton}" />
+                    <Button Margin="8,0,0,0"
+                            Click="OnOpenTemplateFolder"
+                            Content="打开配置文件夹"
                             Style="{StaticResource PmSecondaryButton}" />
                 </StackPanel>
+
+                <Border x:Name="ImportResultBar"
+                        Margin="0,10,0,0"
+                        Visibility="Collapsed"
+                        Style="{StaticResource PmInfoBar}">
+                    <StackPanel>
+                        <TextBlock x:Name="ImportResultTitle"
+                                   Style="{StaticResource PmText}"
+                                   TextWrapping="Wrap" />
+                        <ItemsControl x:Name="IssueList" Margin="0,4,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Margin="0,1"
+                                               Style="{StaticResource PmCaption}"
+                                               Text="{Binding Text}"
+                                               TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="ImportResultHint"
+                                   Margin="0,4,0,0"
+                                   Style="{StaticResource PmCaption}"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Margin="0,8,0,0"
                            Style="{StaticResource PmCaption}"
-                           Text="优先级：用户配置 &gt; 安装目录 &gt; 内置默认。修改用户配置文件后需重新加载或重启。" />
+                           Text="优先级：用户配置 &gt; 安装目录 &gt; 内置默认。来源损坏时自动回退下一优先级，并在上方说明原因。" />
 
                 <Border Margin="0,14" Style="{StaticResource PmSeparator}" />
 

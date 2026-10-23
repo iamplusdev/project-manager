@@ -11,6 +11,7 @@ try
     GitStatusTests.Run();
     RepositoryOverviewTests.Run();
     TemplateUpgradeTests.Run();
+    TemplateLibraryTests.Run();
 }
 catch (Exception ex)
 {

@@ -399,9 +399,15 @@ public sealed class MainViewModel : ObservableObject
     public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
         await Projects.LoadAsync(cancellationToken).ConfigureAwait(true);
-        OnPropertyChanged(nameof(CanScaffold));
-        OnPropertyChanged(nameof(HasTemplateWarning));
+        RefreshTemplateState();
     }
+
+    /// <summary>
+    /// 设置页可能导入/停用了模板配置，回到主壳要把"能不能新建""告警是什么"重新算一遍，
+    /// 否则用户改完了界面还停在旧结论上。
+    /// </summary>
+    public void RefreshTemplateState() =>
+        Raise(nameof(CanScaffold), nameof(TemplateWarning), nameof(HasTemplateWarning), nameof(TemplateSourceText));
 
     /// <summary>
     /// 把已有目录接入清单。成功后重载列表并选中该条，

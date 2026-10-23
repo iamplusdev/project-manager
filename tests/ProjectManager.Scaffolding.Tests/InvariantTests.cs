@@ -470,6 +470,12 @@ public static class InvariantTests
             File.Delete(userPath);
             var seeded = loader.TrySeedUserCopy();
             Check.That(seeded && File.Exists(userPath), "来源：首次启动应把安装目录模板复制到用户目录");
+
+            // 用户「停用」过配置（留有备份）后不该再播种：否则重启就把用户的选择撤销了
+            File.Move(userPath, userPath + ".20260101-000000-000.bak");
+            var reseeded = loader.TrySeedUserCopy();
+            Check.That(!reseeded, "来源：留有备份说明用户来过，不该再播种");
+            Check.That(!File.Exists(userPath), "来源：停用后用户配置应保持不存在，回退才成立");
         }
         finally
         {

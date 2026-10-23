@@ -68,9 +68,14 @@ public sealed class TemplateLoader
     /// <summary>
     /// 首次启动时把安装目录的模板复制到用户目录（复制而非引用：安装目录随更新被整体替换且通常不可写）。
     /// </summary>
+    /// <remarks>
+    /// 只在**真正的首次启动**播种：旁边存在 <c>templates.json.*.bak</c> 说明用户已经来过，
+    /// 而且很可能是主动「停用」了用户配置。此时再播种，等于把用户的决定悄悄撤销——
+    /// 界面上写着"已回退到安装目录"，重启后用户配置又冒出来，还顺手把安装目录的更新挡住了。
+    /// </remarks>
     public bool TrySeedUserCopy()
     {
-        if (File.Exists(_userPath) || !File.Exists(_installPath))
+        if (File.Exists(_userPath) || !File.Exists(_installPath) || HasDisabledHistory())
         {
             return false;
         }
@@ -83,6 +88,26 @@ public sealed class TemplateLoader
 
         File.Copy(_installPath, _userPath, overwrite: false);
         return true;
+    }
+
+    /// <summary>用户目录里是否留有备份（<c>templates.json.*.bak</c>），即"曾经导入或停用过"。</summary>
+    private bool HasDisabledHistory()
+    {
+        var directory = Path.GetDirectoryName(_userPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Directory.EnumerateFiles(directory, Path.GetFileName(_userPath) + ".*.bak").Any();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 目录读不了就无法判断"来过"，按首次启动处理（宁可多播种也不要让应用没模板可用）
+            return false;
+        }
     }
 
     /// <summary>按优先级加载；全部失败时抛出 <see cref="ScaffoldException"/>（PM-SCF-010）。</summary>
@@ -212,6 +237,7 @@ public sealed class TemplateLoader
                     $"模板配置版本过高（$schemaVersion={schemaVersion}），当前应用仅支持 {SupportedSchemaVersion}，请升级应用。")
                 {
                     Details = MetaSchemaVersionKey,
+                    Field = MetaSchemaVersionKey,
                 };
             }
 
@@ -274,7 +300,7 @@ public sealed class TemplateLoader
     {
         if (body.ValueKind != JsonValueKind.Object)
         {
-            throw Invalid(name, "模板配置应是非空对象。");
+            throw InvalidTemplate(name, "配置应是非空对象。");
         }
 
         foreach (var property in body.EnumerateObject())
@@ -314,10 +340,32 @@ public sealed class TemplateLoader
         return template;
     }
 
-    private static ScaffoldException Invalid(string templateName, string message)
+    /// <summary>模板级错误：能定位到模板，但错误不在某个具体字段上。</summary>
+    private static ScaffoldException InvalidTemplate(string templateName, string message)
         => new(ScaffoldErrorCode.TemplateInvalid, $"模板「{templateName}」{message}")
         {
             Details = templateName,
+            TemplateName = templateName,
+        };
+
+    /// <summary>
+    /// 字段级错误：定位到「模板名 + 字段」。<paramref name="message"/> 只写字段之后的半句，
+    /// 前缀由这里统一拼，避免各处措辞不一致导致用户按错误码搜不到同类问题。
+    /// </summary>
+    private static ScaffoldException Invalid(string templateName, string field, string message)
+        => new(ScaffoldErrorCode.TemplateInvalid, $"模板「{templateName}」的 {field} {message}")
+        {
+            Details = $"{templateName} · {field}",
+            TemplateName = templateName,
+            Field = field,
+        };
+
+    /// <summary>整份配置级错误：没有模板可归属（JSON 语法、空对象、版本过高）。</summary>
+    private static ScaffoldException InvalidConfig(string message, string? field = null)
+        => new(ScaffoldErrorCode.TemplateInvalid, message)
+        {
+            Details = field ?? string.Empty,
+            Field = field,
         };
 
     private static DirNode ParseStructure(string name, JsonElement body)
@@ -325,7 +373,7 @@ public sealed class TemplateLoader
         if (!body.TryGetProperty("structure", out var structure) || structure.ValueKind != JsonValueKind.Object
             || !structure.EnumerateObject().Any())
         {
-            throw Invalid(name, "的 structure 应是非空对象。");
+            throw Invalid(name, "structure", "应是非空对象。");
         }
 
         var root = new DirNode(string.Empty);
@@ -360,7 +408,7 @@ public sealed class TemplateLoader
 
         if (value.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(templateName, $"的 {field} 目录列表应是数组。");
+            throw Invalid(templateName, field, "目录列表应是数组。");
         }
 
         var result = new List<string>();
@@ -368,7 +416,7 @@ public sealed class TemplateLoader
         {
             if (item.ValueKind != JsonValueKind.String)
             {
-                throw Invalid(templateName, $"的 {field} 目录列表只能包含字符串。");
+                throw Invalid(templateName, field, "目录列表只能包含字符串。");
             }
 
             result.Add(NormalizeRelative(templateName, field, item.GetString() ?? string.Empty));
@@ -394,22 +442,22 @@ public sealed class TemplateLoader
         var cleaned = segment.Trim();
         if (cleaned.Length == 0 || cleaned is "." or "..")
         {
-            throw Invalid(templateName, $"的 {field} 包含非法目录名：\"{segment}\"（不允许空、. 或 ..）。");
+            throw Invalid(templateName, field, $"包含非法目录名：\"{segment}\"（不允许空、. 或 ..）。");
         }
 
         if (cleaned.IndexOfAny(IllegalSegmentChars) >= 0)
         {
-            throw Invalid(templateName, $"的 {field} 包含非法目录名：\"{segment}\"（含 \\ : * ? \" < > | 之一）。");
+            throw Invalid(templateName, field, $"包含非法目录名：\"{segment}\"（含 \\ : * ? \" < > | 之一）。");
         }
 
         if (cleaned.StartsWith('/') || cleaned.EndsWith('.') || cleaned.EndsWith(' '))
         {
-            throw Invalid(templateName, $"的 {field} 包含非法目录名：\"{segment}\"（不允许以 / 开头或以点/空格结尾）。");
+            throw Invalid(templateName, field, $"包含非法目录名：\"{segment}\"（不允许以 / 开头或以点/空格结尾）。");
         }
 
         if (cleaned.Length >= 2 && cleaned[1] == ':')
         {
-            throw Invalid(templateName, $"的 {field} 不允许绝对路径：\"{segment}\"。");
+            throw Invalid(templateName, field, $"不允许绝对路径：\"{segment}\"。");
         }
 
         return cleaned;
@@ -420,7 +468,7 @@ public sealed class TemplateLoader
         if (!body.TryGetProperty("descriptions", out var descriptions) || descriptions.ValueKind != JsonValueKind.Object
             || !descriptions.EnumerateObject().Any())
         {
-            throw Invalid(name, "缺少非空的 descriptions。");
+            throw Invalid(name, "descriptions", "应是非空对象。");
         }
 
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -428,7 +476,7 @@ public sealed class TemplateLoader
         {
             if (property.Value.ValueKind != JsonValueKind.String)
             {
-                throw Invalid(name, $"的 descriptions「{property.Name}」应为字符串。");
+                throw Invalid(name, $"descriptions「{property.Name}」", "应为字符串。");
             }
 
             map[property.Name] = property.Value.GetString() ?? string.Empty;
@@ -442,7 +490,7 @@ public sealed class TemplateLoader
         if (!body.TryGetProperty("readme_quickstart", out var quickstart) || quickstart.ValueKind != JsonValueKind.String
             || string.IsNullOrWhiteSpace(quickstart.GetString()))
         {
-            throw Invalid(name, "缺少 readme_quickstart。");
+            throw Invalid(name, "readme_quickstart", "缺失或为空。");
         }
 
         return quickstart.GetString()!;
@@ -457,7 +505,7 @@ public sealed class TemplateLoader
 
         if (modules.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(name, "的 modules 应是数组。");
+            throw Invalid(name, "modules", "应是数组。");
         }
 
         var result = new List<ModuleOption>();
@@ -466,19 +514,19 @@ public sealed class TemplateLoader
         {
             if (entry.ValueKind != JsonValueKind.Object)
             {
-                throw Invalid(name, "的模块配置应是对象。");
+                throw Invalid(name, "modules", "的每个元素应是对象。");
             }
 
             var key = ReadOptionalString(entry, "key").Trim();
             var label = ReadOptionalString(entry, "label").Trim();
             if (key.Length == 0 || label.Length == 0)
             {
-                throw Invalid(name, "的模块缺少 key 或 label。");
+                throw Invalid(name, "modules", "中有元素缺少 key 或 label。");
             }
 
             if (!seen.Add(key))
             {
-                throw Invalid(name, $"存在重复的模块 key：{key}");
+                throw Invalid(name, $"modules.{key}", "存在重复的模块 key。");
             }
 
             var paths = entry.TryGetProperty("paths", out var pathsElement)
@@ -487,7 +535,7 @@ public sealed class TemplateLoader
 
             if (paths.Count == 0)
             {
-                throw Invalid(name, $"的模块 {key} 缺少 paths。");
+                throw Invalid(name, $"modules.{key}", "缺少 paths。");
             }
 
             result.Add(new ModuleOption(key, label, paths));
@@ -505,7 +553,7 @@ public sealed class TemplateLoader
 
         if (gitignore.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(name, "的 gitignore 应是数组。");
+            throw Invalid(name, "gitignore", "应是数组。");
         }
 
         return gitignore.EnumerateArray()
@@ -525,14 +573,14 @@ public sealed class TemplateLoader
 
         if (files.ValueKind != JsonValueKind.Object)
         {
-            throw Invalid(name, "的 files 应是对象（落盘路径 → 模板内文件）。");
+            throw Invalid(name, "files", "应是对象（落盘路径 → 模板内文件）。");
         }
 
         foreach (var property in files.EnumerateObject())
         {
             if (property.Value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(property.Value.GetString()))
             {
-                throw Invalid(name, $"的 files「{property.Name}」应是非空字符串（模板内文件路径）。");
+                throw Invalid(name, $"files「{property.Name}」", "应是非空字符串（模板内文件路径）。");
             }
 
             ValidateTargetKey(name, property.Name);
@@ -561,7 +609,7 @@ public sealed class TemplateLoader
 
         if (naming.ValueKind != JsonValueKind.Object)
         {
-            throw Invalid(name, "的 naming 应是对象。");
+            throw Invalid(name, "naming", "应是对象。");
         }
 
         return new NamingConvention(
@@ -587,7 +635,7 @@ public sealed class TemplateLoader
 
         if (!KnownNamingStyles.Contains(value, StringComparer.Ordinal))
         {
-            throw Invalid(templateName, $"的 naming.{field} 只能是 pascal / kebab / snake，实际为「{value}」。");
+            throw Invalid(templateName, $"naming.{field}", $"只能是 pascal / kebab / snake，实际为「{value}」。");
         }
 
         return value;
@@ -602,7 +650,7 @@ public sealed class TemplateLoader
 
         if (components.ValueKind != JsonValueKind.Array)
         {
-            throw Invalid(name, "的 components 应是字符串数组。");
+            throw Invalid(name, "components", "应是字符串数组。");
         }
 
         var result = new List<string>();
@@ -610,7 +658,7 @@ public sealed class TemplateLoader
         {
             if (item.ValueKind != JsonValueKind.String)
             {
-                throw Invalid(name, "的 components 只能包含字符串。");
+                throw Invalid(name, "components", "只能包含字符串。");
             }
 
             result.Add(ValidateSegment(name, "components", item.GetString() ?? string.Empty));
@@ -650,6 +698,8 @@ public sealed class TemplateLoader
                 $"模板「{template.Name}」目录数超限：{dirs} > {MaxDirectoriesPerTemplate}。")
             {
                 Details = $"structure（{dirs} 个目录）",
+                TemplateName = template.Name,
+                Field = "structure",
             };
         }
 
@@ -660,6 +710,8 @@ public sealed class TemplateLoader
                 $"模板「{template.Name}」文件声明数超限：{files} > {MaxFilesPerTemplate}。")
             {
                 Details = $"files（{files} 项）",
+                TemplateName = template.Name,
+                Field = "structure",
             };
         }
 
@@ -670,6 +722,8 @@ public sealed class TemplateLoader
                 $"模板「{template.Name}」files 条目超限：{template.Files.Count} > {MaxFilesPerTemplate}。")
             {
                 Details = "files",
+                TemplateName = template.Name,
+                Field = "files",
             };
         }
     }
