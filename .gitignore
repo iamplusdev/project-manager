@@ -1,0 +1,16 @@
+output/
+node_modules/
+dist/
+build/
+*.log
+.env
+
+# 本地 Agent 工作数据（会话记忆、任务状态），不入库
+.workbuddy/
+
+# .NET 构建产物（M1 起生效）
+bin/
+obj/
+.vs/
+*.user
+*.suo

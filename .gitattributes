@@ -1,0 +1,18 @@
+# 行尾策略：仓库内统一存 LF；检出到工作区由 core.autocrlf 决定（Windows 默认 CRLF）
+* text=auto
+
+# 二进制资源不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.exe binary
+*.dll binary
+
+# 文档与配置按文本处理，便于跨平台 diff
+*.md text
+*.json text
+*.cs text
+*.xaml text
