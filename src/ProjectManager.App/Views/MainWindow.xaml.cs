@@ -87,6 +87,39 @@ public partial class MainWindow : Window
 
     private void OnShowRepositoriesClick(object sender, RoutedEventArgs e) => _viewModel.ShowRepositories();
 
+    private void OnShowChangesClick(object sender, RoutedEventArgs e) => _viewModel.ShowChanges();
+
+    /// <summary>变更页「刷新」：工作区可能刚在别的工具里被改过。</summary>
+    private async void OnRefreshChangesClick(object sender, RoutedEventArgs e)
+        => await _viewModel.RefreshChangesAsync();
+
+    /// <summary>暂存 / 取消暂存：都是显式动作，成功后 SnackBar 说明动了几个文件。</summary>
+    private async void OnStageSelectedClick(object sender, RoutedEventArgs e)
+        => await RunWorkspaceActionAsync(() => _viewModel.SetStagedAsync(staged: true));
+
+    private async void OnUnstageSelectedClick(object sender, RoutedEventArgs e)
+        => await RunWorkspaceActionAsync(() => _viewModel.SetStagedAsync(staged: false));
+
+    /// <summary>提交。失败时必须把 git / hook 的原文透给用户——那是唯一能告诉他怎么改的信息。</summary>
+    private async void OnCommitClick(object sender, RoutedEventArgs e)
+        => await RunWorkspaceActionAsync(_viewModel.CommitAsync, successPrefix: null);
+
+    private async Task RunWorkspaceActionAsync(Func<Task<WorkspaceFeedback>> action, string? successPrefix = null)
+    {
+        try
+        {
+            var feedback = await action();
+            ShowSnack(feedback.Succeeded && successPrefix is not null
+                ? $"{successPrefix}{feedback.Message}"
+                : feedback.Message);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // 兜底：异步事件处理器里漏出去的异常会直接崩进程
+            ShowSnack($"操作失败：{ex.Message}");
+        }
+    }
+
     /// <summary>仓库页「刷新」：清单是当下事实，用户手动重查一次。</summary>
     private async void OnRefreshRepositoriesClick(object sender, RoutedEventArgs e)
         => await _viewModel.RefreshRepositoriesAsync();

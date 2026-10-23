@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using ProjectManager.Application.Components;
+using ProjectManager.Application.Git;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Repositories;
 using ProjectManager.Application.Templates;
@@ -77,6 +78,7 @@ public static class Bootstrapper
             Upgrades = new TemplateUpgradeService(),
             Repositories = new RepositoryOverview(git),
             Git = git,
+            Workspaces = new GitWorkspaceService(git),
             Theme = theme,
             Repository = repository,
         };

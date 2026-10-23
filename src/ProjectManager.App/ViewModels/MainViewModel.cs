@@ -1,20 +1,25 @@
 using System.ComponentModel;
 using System.IO;
 using ProjectManager.Application.Components;
+using ProjectManager.Application.Git;
 using ProjectManager.Application.Mvvm;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Repositories;
 using ProjectManager.App.Services;
+using ProjectManager.CliInterop;
 using ProjectManager.Storage;
 
 namespace ProjectManager.App.ViewModels;
 
-/// <summary>侧栏主导航。M3 开了「项目」「组件」「仓库」三页。</summary>
+/// <summary>侧栏主导航。M3 开了「项目」「组件」「仓库」三页，M5 补上「变更」。</summary>
 public enum ShellSection
 {
     Projects,
     Components,
     Repositories,
+
+    /// <summary>Git 工作台：待提交改动 + 差异预览 + 提交。</summary>
+    Changes,
 }
 
 /// <summary>
@@ -36,6 +41,21 @@ public sealed class MainViewModel : ObservableObject
     private string _gitSummary = string.Empty;
     private bool _isLoadingFacts;
     private int _factsVersion;
+
+    // ── 变更页（Git 工作台，WP5.1 / WP5.2） ──────────────────────────────
+    private GitWorkspaceView? _workspace;
+    private IReadOnlyList<GitChangeItem> _changeItems = Array.Empty<GitChangeItem>();
+    private GitChangeItem? _selectedChange;
+    private IReadOnlyList<DiffRow> _diffRows = Array.Empty<DiffRow>();
+    private string _diffTitle = string.Empty;
+    private string _diffStat = string.Empty;
+    private string _diffHint = DiffRow.ExplainEmpty(null);
+    private string _commitTitle = string.Empty;
+    private string _commitBody = string.Empty;
+    private string _changesMessage = string.Empty;
+    private bool _changesMessageIsError;
+    private bool _isChangesBusy;
+    private int _changesVersion;
 
     public MainViewModel(ShellContext context)
     {
@@ -85,12 +105,18 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
-            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection), nameof(IsRepositoriesSection));
+            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection), nameof(IsRepositoriesSection), nameof(IsChangesSection));
 
             // 切到仓库页即现查一遍：清单是"当下事实"，缓存只会在用户以为准确时骗人
             if (value == ShellSection.Repositories)
             {
                 _ = LoadRepositoriesAsync();
+            }
+
+            // 变更页同理：工作区可能刚在别的工具里被改过
+            if (value == ShellSection.Changes)
+            {
+                _ = LoadChangesAsync();
             }
         }
     }
@@ -101,11 +127,15 @@ public sealed class MainViewModel : ObservableObject
 
     public bool IsRepositoriesSection => _section == ShellSection.Repositories;
 
+    public bool IsChangesSection => _section == ShellSection.Changes;
+
     public void ShowProjects() => Section = ShellSection.Projects;
 
     public void ShowComponents() => Section = ShellSection.Components;
 
     public void ShowRepositories() => Section = ShellSection.Repositories;
+
+    public void ShowChanges() => Section = ShellSection.Changes;
 
     // ── 选中与主区三态 ───────────────────────────────────────────────────
 
@@ -132,6 +162,14 @@ public sealed class MainViewModel : ObservableObject
                 nameof(HasComponents));
 
             _ = LoadProjectFactsAsync(value);
+
+            // 换项目后工作台的事实全变了：先把上一个项目的东西清掉，
+            // 否则在"新项目不是仓库"时会短暂显示旧项目的改动与 diff
+            ResetWorkspaceState();
+            if (_section == ShellSection.Changes)
+            {
+                _ = LoadChangesAsync();
+            }
         }
     }
 
@@ -322,6 +360,427 @@ public sealed class MainViewModel : ObservableObject
 
         IsLoadingRepositories = false;
         Repositories = entries;
+    }
+
+    // ── 变更页：Git 工作台（WP5.1 / WP5.2） ──────────────────────────────
+
+    /// <summary>当前项目工作区的变更清单（实时查询，不落库）。</summary>
+    public IReadOnlyList<GitChangeItem> ChangeItems
+    {
+        get => _changeItems;
+        private set
+        {
+            if (SetProperty(ref _changeItems, value))
+            {
+                Raise(nameof(HasChanges), nameof(ChangesSummary), nameof(CanCommit), nameof(CommitHint));
+            }
+        }
+    }
+
+    public bool HasChanges => _changeItems.Count > 0;
+
+    public string ChangesSummary => _workspace?.Summary ?? string.Empty;
+
+    public string ChangesHint
+    {
+        get
+        {
+            if (_selected is null)
+            {
+                return "先在左侧选择一个项目，再查看它的未提交改动。";
+            }
+
+            if (_isChangesBusy && _workspace is null)
+            {
+                return "正在读取工作区…";
+            }
+
+            return _workspace?.EmptyHint ?? string.Empty;
+        }
+    }
+
+    /// <summary>右侧预览的对象。换文件即重新取差异。</summary>
+    public GitChangeItem? SelectedChange
+    {
+        get => _selectedChange;
+        set
+        {
+            if (!SetProperty(ref _selectedChange, value))
+            {
+                return;
+            }
+
+            _ = LoadDiffAsync(value);
+        }
+    }
+
+    public IReadOnlyList<DiffRow> DiffRows
+    {
+        get => _diffRows;
+        private set
+        {
+            if (SetProperty(ref _diffRows, value))
+            {
+                Raise(nameof(HasDiffRows));
+            }
+        }
+    }
+
+    public bool HasDiffRows => _diffRows.Count > 0;
+
+    public string DiffTitle
+    {
+        get => _diffTitle;
+        private set => SetProperty(ref _diffTitle, value);
+    }
+
+    /// <summary>差异统计：<c>修改 · +12 −3</c>；没有 hunk 时为空。</summary>
+    public string DiffStat
+    {
+        get => _diffStat;
+        private set => SetProperty(ref _diffStat, value);
+    }
+
+    /// <summary>没有可显示的行时给一句解释（未跟踪 / 二进制 / 读取失败各不相同）。</summary>
+    public string DiffHint
+    {
+        get => _diffHint;
+        private set
+        {
+            if (SetProperty(ref _diffHint, value))
+            {
+                Raise(nameof(HasDiffHint));
+            }
+        }
+    }
+
+    public bool HasDiffHint => _diffHint.Length > 0;
+
+    public string CommitTitle
+    {
+        get => _commitTitle;
+        set
+        {
+            if (SetProperty(ref _commitTitle, value))
+            {
+                Raise(nameof(CanCommit), nameof(CommitHint));
+            }
+        }
+    }
+
+    public string CommitBody
+    {
+        get => _commitBody;
+        set => SetProperty(ref _commitBody, value);
+    }
+
+    /// <summary>可提交 = 索引区有内容 + 标题非空 + 没有未解决冲突 + 不忙。</summary>
+    public bool CanCommit
+        => !_isChangesBusy
+           && _workspace is { IsRepository: true }
+           && _commitTitle.Trim().Length > 0
+           && StagedCount > 0
+           && !HasConflict;
+
+    public int StagedCount => _workspace?.Tree.StagedCount ?? 0;
+
+    private bool HasConflict => _changeItems.Any(item => item.IsConflicted);
+
+    /// <summary>按钮旁的一句解释：为什么现在点不了提交。</summary>
+    public string CommitHint
+    {
+        get
+        {
+            if (_selected is null)
+            {
+                return "未选择项目";
+            }
+
+            if (_workspace is { IsRepository: false })
+            {
+                return "当前目录不是 Git 仓库";
+            }
+
+            if (HasConflict)
+            {
+                return "有未解决的冲突，先解决再提交";
+            }
+
+            if (StagedCount == 0)
+            {
+                return "先勾选文件并暂存";
+            }
+
+            if (_commitTitle.Trim().Length == 0)
+            {
+                return "填写提交标题后即可提交";
+            }
+
+            return $"已暂存 {StagedCount} 个文件，可立即提交";
+        }
+    }
+
+    public string ChangesMessage
+    {
+        get => _changesMessage;
+        private set
+        {
+            if (SetProperty(ref _changesMessage, value))
+            {
+                Raise(nameof(HasChangesMessage));
+            }
+        }
+    }
+
+    public bool HasChangesMessage => _changesMessage.Length > 0;
+
+    public bool ChangesMessageIsError
+    {
+        get => _changesMessageIsError;
+        private set => SetProperty(ref _changesMessageIsError, value);
+    }
+
+    public bool IsChangesBusy
+    {
+        get => _isChangesBusy;
+        private set
+        {
+            if (SetProperty(ref _isChangesBusy, value))
+            {
+                Raise(nameof(CanCommit), nameof(CommitHint));
+            }
+        }
+    }
+
+    public Task RefreshChangesAsync() => LoadChangesAsync();
+
+    /// <summary>清空工作台展示态（换项目、丢了选中时）。不动 UI 上的提交标题——那是用户正在写的东西。</summary>
+    private void ResetWorkspaceState()
+    {
+        _workspace = null;
+        ChangeItems = Array.Empty<GitChangeItem>();
+        SelectedChange = null;
+        DiffRows = Array.Empty<DiffRow>();
+        DiffTitle = string.Empty;
+        DiffStat = string.Empty;
+        DiffHint = DiffRow.ExplainEmpty(null);
+        ChangesMessage = string.Empty;
+        ChangesMessageIsError = false;
+        Raise(nameof(ChangesSummary), nameof(ChangesHint), nameof(CanCommit), nameof(CommitHint), nameof(StagedCount));
+    }
+
+    /// <summary>暂存/取消暂存当前勾选的文件。返回结果供界面提示。</summary>
+    public async Task<WorkspaceFeedback> SetStagedAsync(bool staged)
+    {
+        if (_selected is not { } project)
+        {
+            return WorkspaceFeedback.Fail("未选择项目。");
+        }
+
+        var paths = _changeItems.Where(item => item.IsSelected).Select(item => item.Path).ToList();
+        if (paths.Count == 0)
+        {
+            return WorkspaceFeedback.Fail(staged ? "请先勾选要暂存的文件。" : "请先勾选要取消暂存的文件。");
+        }
+
+        IsChangesBusy = true;
+        try
+        {
+            var result = await _context.Workspaces
+                .SetStagedAsync(project.Path, paths, staged)
+                .ConfigureAwait(true);
+
+            if (!result.Success)
+            {
+                return WorkspaceFeedback.Fail(result.Message);
+            }
+
+            var action = staged ? "已暂存" : "已取消暂存";
+            var executedPaths = paths;
+
+            // 暂存后立刻刷新：状态栏里的「已暂存 · 修改」必须当场变，否则用户会以为没生效
+            await LoadChangesAsync(preserveSelection: true).ConfigureAwait(true);
+
+            // 提交标题可以顺手预填：勾选的文件全在一个顶层目录下时，用目录名当标题是常见起点
+            if (staged && _commitTitle.Trim().Length == 0 && executedPaths.Count > 0)
+            {
+                CommitTitle = GitWorkspaceService.SuggestTitle(executedPaths);
+            }
+
+            return WorkspaceFeedback.Ok($"{action} {executedPaths.Count} 个文件。");
+        }
+        finally
+        {
+            IsChangesBusy = false;
+        }
+    }
+
+    /// <summary>提交索引区内容。成功后清空标题/描述并回读工作区。</summary>
+    public async Task<WorkspaceFeedback> CommitAsync()
+    {
+        if (_selected is not { } project)
+        {
+            return WorkspaceFeedback.Fail("未选择项目。");
+        }
+
+        IsChangesBusy = true;
+        try
+        {
+            var outcome = await _context.Workspaces
+                .CommitAsync(project.Path, _commitTitle, _commitBody)
+                .ConfigureAwait(true);
+
+            if (!outcome.Succeeded)
+            {
+                return WorkspaceFeedback.Fail(outcome.Message);
+            }
+
+            // 只有成功才清空输入：失败时用户最需要的就是"刚写的那段还在"
+            CommitTitle = string.Empty;
+            CommitBody = string.Empty;
+
+            await LoadChangesAsync(preserveSelection: true).ConfigureAwait(true);
+
+            // 详情页的"N 处未提交改动"也过时了
+            _ = LoadProjectFactsAsync(project);
+
+            return WorkspaceFeedback.Ok(outcome.Message);
+        }
+        finally
+        {
+            IsChangesBusy = false;
+        }
+    }
+
+    private async Task LoadChangesAsync(bool preserveSelection = false)
+    {
+        var version = ++_changesVersion;
+
+        if (_selected is not { } project)
+        {
+            _workspace = null;
+            ChangeItems = Array.Empty<GitChangeItem>();
+            SelectedChange = null;
+            DiffRows = Array.Empty<DiffRow>();
+            DiffTitle = string.Empty;
+            DiffStat = string.Empty;
+            DiffHint = DiffRow.ExplainEmpty(null);
+            Raise(nameof(ChangesSummary), nameof(ChangesHint), nameof(CanCommit), nameof(CommitHint));
+            return;
+        }
+
+        IsChangesBusy = true;
+
+        // 记住旧的勾选与选中，刷新后按路径还原：否则每点一次暂存，用户的勾选就全没了
+        var previousSelection = preserveSelection
+            ? _changeItems.Where(item => item.IsSelected).Select(item => item.Path).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : null;
+        var previousSelectedPath = _selectedChange?.Path;
+
+        GitWorkspaceView view;
+        try
+        {
+            view = await _context.Workspaces.LoadAsync(project.Path).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            if (version == _changesVersion)
+            {
+                IsChangesBusy = false;
+                _workspace = GitWorkspaceView.From(GitWorkingTree.Unavailable(ex.Message));
+                ChangeItems = Array.Empty<GitChangeItem>();
+                ChangesMessage = $"读取工作区失败：{ex.Message}";
+                ChangesMessageIsError = true;
+                Raise(nameof(ChangesSummary), nameof(ChangesHint), nameof(CanCommit), nameof(CommitHint));
+            }
+
+            return;
+        }
+
+        if (version != _changesVersion)
+        {
+            return;
+        }
+
+        _workspace = view;
+
+        var items = view.Changes
+            .Select(entry =>
+            {
+                var item = new GitChangeItem(entry);
+                if (previousSelection is not null)
+                {
+                    item.IsSelected = previousSelection.Contains(entry.Path);
+                }
+
+                return item;
+            })
+            .ToList();
+
+        ChangeItems = items;
+        IsChangesBusy = false;
+
+        // 选中项：原文件还在就保持，否则选第一个，让右侧不留空
+        var next = previousSelectedPath is null
+            ? items.FirstOrDefault()
+            : items.FirstOrDefault(item => string.Equals(item.Path, previousSelectedPath, StringComparison.OrdinalIgnoreCase))
+              ?? items.FirstOrDefault();
+
+        if (!ReferenceEquals(next, _selectedChange))
+        {
+            SelectedChange = next;
+        }
+        else if (next is not null)
+        {
+            // 同一个对象但内容变了（刚暂存过），差异要重取
+            _ = LoadDiffAsync(next);
+        }
+
+        Raise(nameof(ChangesSummary), nameof(ChangesHint), nameof(CanCommit), nameof(CommitHint), nameof(StagedCount));
+    }
+
+    private async Task LoadDiffAsync(GitChangeItem? item)
+    {
+        if (_selected is not { } project || item is null)
+        {
+            DiffRows = Array.Empty<DiffRow>();
+            DiffTitle = string.Empty;
+            DiffStat = string.Empty;
+
+            // 没有可预览的行有两种原因，别用同一句话应付：
+            // 工作区本来就干净 vs 有改动但用户还没选文件
+            DiffHint = _workspace is { IsRepository: true, HasChanges: false }
+                ? "工作区干净，没有可预览的改动。"
+                : DiffRow.ExplainEmpty(null);
+            return;
+        }
+
+        DiffTitle = item.DisplayPath;
+        DiffStat = string.Empty;
+        DiffRows = Array.Empty<DiffRow>();
+        DiffHint = "正在读取差异…";
+
+        FileDiff? diff;
+        try
+        {
+            diff = await _context.Workspaces.LoadDiffAsync(project.Path, item.Entry).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            DiffRows = Array.Empty<DiffRow>();
+            DiffHint = $"读取差异失败：{ex.Message}";
+            return;
+        }
+
+        // 用户可能已经切到别的文件：过期结果直接丢，否则会出现"标题是 A、内容是 B"
+        if (!ReferenceEquals(_selectedChange, item))
+        {
+            return;
+        }
+
+        DiffRows = DiffRow.FromHunks(diff.Hunks);
+        DiffStat = DiffRows.Count == 0 ? string.Empty : $"{diff.KindText} · {diff.Summary}";
+        DiffHint = DiffRow.ExplainEmpty(diff);
     }
 
     // ── 详情页的模板同步（WP3.5） ────────────────────────────────────────
@@ -525,6 +984,12 @@ public sealed class MainViewModel : ObservableObject
         if (_section == ShellSection.Repositories)
         {
             _ = LoadRepositoriesAsync();
+        }
+
+        // 变更页同理：导入/删除项目会改变"当前项目"的含义
+        if (_section == ShellSection.Changes)
+        {
+            _ = LoadChangesAsync();
         }
     }
 }

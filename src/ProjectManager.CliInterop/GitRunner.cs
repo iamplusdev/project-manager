@@ -112,7 +112,11 @@ public sealed record GitStatusSnapshot(bool IsRepository, string Branch, int Cha
 /// Git CLI 封装（双引擎架构的 CLI 侧）。M2 只需要 <c>git init</c>；
 /// 后续 Git 工作台复用这里的进程封装约定：超时看门狗、UTF-8 输出、错误归一。
 /// </summary>
-public sealed class GitRunner : IGitRunner
+/// <remarks>
+/// 分部类拆在 <c>GitRunner.Workspace.cs</c>：工作区读写（status/diff/add/commit）与
+/// 仓库探测的失败语义不同，分文件更利于单独审视"写操作是否安全"。
+/// </remarks>
+public sealed partial class GitRunner : IGitRunner, IGitWorkspaceRunner
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 

@@ -75,6 +75,16 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="PmNavChanges" TargetType="Button" BasedOn="{StaticResource PmNavButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsChangesSection}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- 仓库清单状态徽标：颜色只表达"要不要处理"，不表达技术分类 -->
         <Style x:Key="PmRepoChip" TargetType="Border" BasedOn="{StaticResource PmChip}">
             <Setter Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
@@ -309,7 +319,7 @@
                     BorderBrush="{DynamicResource PmBorderBrush}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
-                    <!-- 导航五项：项目/组件/仓库已开放；历史/发版按里程碑置灰（UI 方案 6.3） -->
+                    <!-- 导航六项：项目/组件/仓库/变更已开放；历史/发版按里程碑置灰（UI 方案 §6.3 补注） -->
                     <StackPanel DockPanel.Dock="Top" Margin="8,10,8,6">
                         <Button Click="OnShowProjectsClick" Style="{StaticResource PmNavProjects}" ToolTip="项目">
                             <StackPanel Orientation="Horizontal">
@@ -329,13 +339,19 @@
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="仓库" />
                             </StackPanel>
                         </Button>
-                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="历史记录（M3 起开放）">
+                        <Button Click="OnShowChangesClick" Style="{StaticResource PmNavChanges}" ToolTip="变更：待提交改动与差异（WP5.1 / WP5.2）">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource PmIcon}" Text="&#xE8C8;" />
+                                <TextBlock Style="{StaticResource PmNavLabel}" Text="变更" />
+                            </StackPanel>
+                        </Button>
+                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="提交历史（WP5.3 之后开放）">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE81C;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="历史" />
                             </StackPanel>
                         </Button>
-                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="发版流水线（M4 起开放）">
+                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="发版流水线（M6 起开放）">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE8EC;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="发版" />
@@ -797,13 +813,268 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
+
+                <!-- ═══ 变更页（M5 · WP5.1 / WP5.2：Git 工作台） ═══ -->
+                <Grid Visibility="{Binding IsChangesSection, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 页头 -->
+                    <Grid Grid.Row="0" Margin="24,20,24,10">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource PmSectionTitle}" Text="变更" />
+                            <TextBlock Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource PmCaption}"
+                                       Text="{Binding ChangesSummary}" />
+                        </StackPanel>
+                        <Button Height="26"
+                                Padding="10,0"
+                                HorizontalAlignment="Right"
+                                Click="OnRefreshChangesClick"
+                                Content="刷新"
+                                Style="{StaticResource PmSecondaryButton}"
+                                ToolTip="重新读取工作区（不读缓存）" />
+                    </Grid>
+
+                    <!-- 主体：左清单 / 右差异 -->
+                    <Grid Grid.Row="1" Margin="24,0,24,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="264" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 变更清单 -->
+                        <Border Grid.Column="0" Style="{StaticResource PmCard}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Margin="12,10,12,6"
+                                           Style="{StaticResource PmCaption}"
+                                           Text="勾选后可暂存到索引区" />
+
+                                <TextBlock DockPanel.Dock="Top"
+                                           Margin="12,4,12,8"
+                                           Text="{Binding ChangesHint}"
+                                           TextWrapping="Wrap">
+                                    <TextBlock.Style>
+                                        <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasChanges}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <ListBox Margin="4,0,4,6"
+                                         ItemsSource="{Binding ChangeItems}"
+                                         SelectedItem="{Binding SelectedChange, Mode=TwoWay}"
+                                         Style="{StaticResource PmListBox}"
+                                         Visibility="{Binding HasChanges, Converter={StaticResource BoolToVis}}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,3">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <CheckBox Grid.Column="0"
+                                                          VerticalAlignment="Center"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                          Style="{StaticResource PmCheckBox}"
+                                                          ToolTip="只表示勾选，不写入索引；点下方「暂存所选」才生效" />
+
+                                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                    <TextBlock FontSize="12"
+                                                               Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                               Text="{Binding DisplayPath}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding DisplayPath}" />
+                                                    <TextBlock Style="{StaticResource PmCaption}" Text="{Binding StatusText}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 差异预览 -->
+                        <Border Grid.Column="2" Style="{StaticResource PmCard}">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" Margin="12,10,12,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                               Text="{Binding DiffTitle}"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <TextBlock Grid.Column="1"
+                                               Margin="8,0,0,0"
+                                               Style="{StaticResource PmCaption}"
+                                               Text="{Binding DiffStat}" />
+                                </Grid>
+
+                                <Border DockPanel.Dock="Top" Margin="12,0,12,6" Style="{StaticResource PmSeparator}" />
+
+                                <TextBlock Margin="12,10,12,10"
+                                           Text="{Binding DiffHint}"
+                                           TextWrapping="Wrap"
+                                           Visibility="{Binding HasDiffHint, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock.Style>
+                                        <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock" />
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- 单文件 diff：未做虚拟化，横向可滚（代码行不该软换行，否则行号列会错位） -->
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Visibility="{Binding HasDiffRows, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl Margin="0,0,0,8" ItemsSource="{Binding DiffRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border x:Name="RowBackground" Background="Transparent">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="46" />
+                                                            <ColumnDefinition Width="46" />
+                                                            <ColumnDefinition Width="20" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Margin="0,0,6,0"
+                                                                   HorizontalAlignment="Right"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource PmTextSecondaryBrush}"
+                                                                   Text="{Binding OldNumber}" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Margin="0,0,6,0"
+                                                                   HorizontalAlignment="Right"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource PmTextSecondaryBrush}"
+                                                                   Text="{Binding NewNumber}" />
+                                                        <TextBlock Grid.Column="2"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource PmTextSecondaryBrush}"
+                                                                   Text="{Binding Marker}" />
+                                                        <TextBlock x:Name="RowText"
+                                                                   Grid.Column="3"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                                   Text="{Binding Text}"
+                                                                   TextWrapping="NoWrap" />
+                                                    </Grid>
+                                                </Border>
+                                                <DataTemplate.Triggers>
+                                                    <!-- 增绿删红：这是代码差异的国际惯例，不是行情的涨跌色 -->
+                                                    <DataTrigger Binding="{Binding IsAdded}" Value="True">
+                                                        <Setter TargetName="RowBackground" Property="Background" Value="{DynamicResource PmSuccessSubtleBrush}" />
+                                                        <Setter TargetName="RowText" Property="Foreground" Value="{DynamicResource PmSuccessBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsRemoved}" Value="True">
+                                                        <Setter TargetName="RowBackground" Property="Background" Value="{DynamicResource PmDangerSubtleBrush}" />
+                                                        <Setter TargetName="RowText" Property="Foreground" Value="{DynamicResource PmDangerBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                                        <Setter TargetName="RowText" Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsNote}" Value="True">
+                                                        <Setter TargetName="RowText" Property="Foreground" Value="{DynamicResource PmTextSecondaryBrush}" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 提交区 -->
+                    <Border Grid.Row="2"
+                            Margin="24,0,24,20"
+                            Padding="16,12"
+                            Style="{StaticResource PmCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock Style="{StaticResource PmCaption}" Text="提交标题" />
+                                <TextBox x:Name="CommitTitleBox"
+                                         MinHeight="30"
+                                         Text="{Binding CommitTitle, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource PmTextBox}"
+                                         ToolTip="一句话说明这次改了什么（first line 会成为提交摘要）" />
+
+                                <TextBlock Margin="0,8,0,0" Style="{StaticResource PmCaption}" Text="描述（可选）" />
+                                <TextBox Height="52"
+                                         AcceptsReturn="True"
+                                         Text="{Binding CommitBody, UpdateSourceTrigger=PropertyChanged}"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Style="{StaticResource PmTextBox}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Orientation="Horizontal">
+                                <Button Height="30"
+                                        Padding="12,0"
+                                        Click="OnStageSelectedClick"
+                                        Content="暂存所选"
+                                        Style="{StaticResource PmSecondaryButton}"
+                                        ToolTip="把勾选的文件加入索引区（git add）" />
+                                <Button Height="30"
+                                        Margin="8,0,0,0"
+                                        Padding="12,0"
+                                        Click="OnUnstageSelectedClick"
+                                        Content="取消暂存"
+                                        Style="{StaticResource PmSecondaryButton}"
+                                        ToolTip="把勾选的文件移出索引区，工作区内容不变（git reset）" />
+                                <Button Height="30"
+                                        Margin="8,0,0,0"
+                                        Padding="16,0"
+                                        Click="OnCommitClick"
+                                        Content="提交"
+                                        IsEnabled="{Binding CanCommit}"
+                                        Style="{StaticResource PmPrimaryButton}"
+                                        ToolTip="提交索引区内容（经 Git CLI，仓库 hooks 会正常执行）" />
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1"
+                                       Margin="0,0,0,4"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Top"
+                                       Style="{StaticResource PmCaption}"
+                                       Text="{Binding CommitHint}" />
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
 
         <!-- ═══ 非阻塞提示（UI 方案第 4 节：SnackBar） ═══ -->
         <Border x:Name="SnackHost"
                 Grid.Row="1"
-                Margin="0,0,24,24"
                 Padding="14,10"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"
@@ -811,6 +1082,17 @@
                 CornerRadius="6"
                 Opacity="0"
                 Visibility="Collapsed">
+            <!-- 变更页底部有提交区：提示浮在原位会正好盖住「提交」按钮，所以在那一页抬高 -->
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Margin" Value="0,0,24,24" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsChangesSection}" Value="True">
+                            <Setter Property="Margin" Value="0,0,24,152" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <Border.Effect>
                 <DropShadowEffect BlurRadius="14" Opacity="0.22" ShadowDepth="2" />
             </Border.Effect>

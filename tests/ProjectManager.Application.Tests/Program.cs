@@ -9,6 +9,7 @@ try
     ProjectListTests.Run();
     ComponentScannerTests.Run();
     GitStatusTests.Run();
+    GitWorkspaceTests.Run();
     RepositoryOverviewTests.Run();
     TemplateUpgradeTests.Run();
     TemplateLibraryTests.Run();

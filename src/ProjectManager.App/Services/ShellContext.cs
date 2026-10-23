@@ -1,5 +1,6 @@
 using System.IO;
 using ProjectManager.Application.Components;
+using ProjectManager.Application.Git;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Repositories;
 using ProjectManager.Application.Templates;
@@ -69,6 +70,9 @@ public sealed class ShellContext
 
     /// <summary>Git CLI 封装：生成时 init，详情页查实时状态。</summary>
     public required IGitRunner Git { get; init; }
+
+    /// <summary>Git 工作台编排（变更清单 / 差异 / 暂存 / 提交）。</summary>
+    public required GitWorkspaceService Workspaces { get; init; }
 
     public bool CanScaffold => Templates.Count > 0;
 
