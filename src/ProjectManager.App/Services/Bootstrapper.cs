@@ -94,6 +94,7 @@ public static class Bootstrapper
             Projects = new ProjectListModel(repository),
             Importer = new ProjectImporter(repository),
             Components = new ComponentScanner(),
+            Upgrades = new TemplateUpgradeService(),
             Git = git,
             Theme = theme,
             Repository = repository,

@@ -1,8 +1,23 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using ProjectManager.Scaffolding.IO;
 using ProjectManager.Scaffolding.Models;
 
 namespace ProjectManager.Scaffolding.Scaffolding;
+
+/// <summary>读回生成元数据。字段缺失按空值处理——旧版本生成的项目也要能读。</summary>
+public sealed record ScaffoldMetadataInfo(
+    string ProjectName,
+    string Template,
+    string TemplateHash,
+    int SchemaVersion,
+    IReadOnlyList<string> Modules,
+    string GeneratedAt)
+{
+    /// <summary>是否已有可比对的模板指纹。</summary>
+    public bool HasHash => TemplateHash.Length > 0;
+}
 
 /// <summary>
 /// 生成元数据（WP1.9 / G10）。写在项目根的 <c>.pm-scaffold.json</c>，用于：
@@ -41,6 +56,108 @@ public static class ScaffoldMetadata
         };
 
         return JsonSerializer.Serialize(payload, SerializerOptions) + "\n";
+    }
+
+    /// <summary>
+    /// 读回项目根的 <c>.pm-scaffold.json</c>。不存在、损坏或不是对象一律返回 <c>null</c>，
+    /// 由调用方降级——元数据读不出来不该阻断"打开项目"。
+    /// </summary>
+    public static ScaffoldMetadataInfo? TryRead(IFileSystem fileSystem, string projectRoot)
+    {
+        var path = Path.Combine(projectRoot, FileName);
+        if (!fileSystem.FileExists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            var node = JsonNode.Parse(fileSystem.ReadAllText(path));
+            if (node is not JsonObject root)
+            {
+                return null;
+            }
+
+            return new ScaffoldMetadataInfo(
+                ReadString(root, "projectName") ?? string.Empty,
+                ReadString(root, "template") ?? string.Empty,
+                ReadString(root, "templateHash") ?? string.Empty,
+                ReadInt(root, "schemaVersion"),
+                ReadModules(root),
+                ReadString(root, "generatedAt") ?? string.Empty);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 只更新模板指纹（与可选的 schemaVersion / 升级时间），**保留文件里的其它字段**。
+    /// 用于"补结构"之后把项目标记为已对齐，避免下次又提示升级。
+    /// </summary>
+    public static bool TryUpdateHash(
+        IFileSystem fileSystem,
+        string projectRoot,
+        string templateHash,
+        int schemaVersion,
+        DateTimeOffset at)
+    {
+        var path = Path.Combine(projectRoot, FileName);
+        if (!fileSystem.FileExists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(fileSystem.ReadAllText(path)) is not JsonObject root)
+            {
+                return false;
+            }
+
+            root["templateHash"] = templateHash;
+            root["schemaVersion"] = schemaVersion;
+            root["upgradedAt"] = at.ToString("O");
+
+            fileSystem.WriteAllText(path, root.ToJsonString(SerializerOptions) + "\n");
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string? ReadString(JsonObject root, string propertyName)
+    {
+        var node = root[propertyName];
+        return node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+    }
+
+    private static int ReadInt(JsonObject root, string propertyName)
+    {
+        var node = root[propertyName];
+        return node is JsonValue value && value.TryGetValue<int>(out var number) ? number : 1;
+    }
+
+    private static IReadOnlyList<string> ReadModules(JsonObject root)
+    {
+        if (root["modules"] is not JsonArray array)
+        {
+            return Array.Empty<string>();
+        }
+
+        var modules = new List<string>();
+        foreach (var item in array)
+        {
+            if (item is JsonValue value && value.TryGetValue<string>(out var text) && text.Length > 0)
+            {
+                modules.Add(text);
+            }
+        }
+
+        return modules;
     }
 
     private sealed class Payload

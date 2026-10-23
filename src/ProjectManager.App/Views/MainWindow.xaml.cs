@@ -84,6 +84,19 @@ public partial class MainWindow : Window
 
     private void OnShowComponentsClick(object sender, RoutedEventArgs e) => _viewModel.ShowComponents();
 
+    /// <summary>「补新增目录」：只加不删，执行完 SnackBar 说明补了什么。</summary>
+    private void OnApplyUpgradeClick(object sender, RoutedEventArgs e)
+    {
+        var outcome = _viewModel.ApplyUpgrade();
+        if (outcome is null)
+        {
+            ShowSnack("当前没有可补的目录。");
+            return;
+        }
+
+        ShowSnack(outcome.Message);
+    }
+
     private async void OnToggleSidebarClick(object sender, RoutedEventArgs e)
     {
         _viewModel.IsSidebarCollapsed = !_viewModel.IsSidebarCollapsed;

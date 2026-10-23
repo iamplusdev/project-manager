@@ -40,14 +40,53 @@ public interface IGitRunner
 /// </summary>
 public sealed record GitStatusSnapshot(bool IsRepository, string Branch, int ChangedFiles, string? Error)
 {
+    /// <summary>
+    /// 项目目录位于**上层仓库**内时的那个上层仓库根（例如打开 monorepo 里的一个子目录）。
+    /// 非空表示"这里不是独立仓库"，不能拿上层的分支与改动数冒充本项目的状态。
+    /// </summary>
+    public string? ParentRepository { get; init; }
+
     public static GitStatusSnapshot NotRepository() => new(false, string.Empty, 0, null);
 
     public static GitStatusSnapshot Unavailable(string error) => new(false, string.Empty, 0, error);
 
+    /// <summary>位于上层仓库内的快照：仍然是"未初始化"，但要说明原因，否则用户会以为自家仓库没了。</summary>
+    public static GitStatusSnapshot InParentRepository(string repositoryRoot) => new(false, string.Empty, 0, null)
+    {
+        ParentRepository = repositoryRoot,
+    };
+
     /// <summary>详情页一行摘要。</summary>
-    public string Summary => !IsRepository
-        ? (Error is null ? "未初始化 Git" : $"Git 状态不可用：{Error}")
-        : (ChangedFiles == 0 ? $"{Branch} · 工作区干净" : $"{Branch} · {ChangedFiles} 处未提交改动");
+    public string Summary
+    {
+        get
+        {
+            if (ParentRepository is not null)
+            {
+                var name = Path.GetFileName(
+                    Path.TrimEndingDirectorySeparator(ParentRepository));
+                return string.IsNullOrEmpty(name)
+                    ? "未独立初始化 Git（位于上层仓库内）"
+                    : $"未独立初始化 Git · 位于上层仓库 {name} 内";
+            }
+
+            if (!IsRepository)
+            {
+                return Error is null ? "未初始化 Git" : $"Git 状态不可用：{Error}";
+            }
+
+            return ChangedFiles == 0 ? $"{Branch} · 工作区干净" : $"{Branch} · {ChangedFiles} 处未提交改动";
+        }
+    }
+
+    /// <summary>两个路径是否指向同一目录（忽略大小写、尾分隔符与分隔符风格）。</summary>
+    public static bool IsSamePath(string left, string right)
+    {
+        static string Normalize(string value)
+            => Path.TrimEndingDirectorySeparator(value.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar));
+
+        return string.Equals(Normalize(left), Normalize(right), StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// 从命令输出解析状态。抽成静态方法是为了让解析规则（空行、CRLF、未提交仓库）可单测，
@@ -135,7 +174,22 @@ public sealed class GitRunner : IGitRunner
             return GitStatusSnapshot.NotRepository();
         }
 
-        // ② 分支名：symbolic-ref 在"零提交仓库"里也有效；失败说明处于分离头指针
+        // ② 必须是**本目录自身**的仓库根：位于上层仓库内（如打开 monorepo 的子目录）时，
+        //    拿上层的分支和改动数冒充本项目状态是错的
+        var topLevel = await RunAsync(new[] { "rev-parse", "--show-toplevel" }, workingDirectory, cancellationToken)
+            .ConfigureAwait(false);
+        if (!topLevel.Success)
+        {
+            return GitStatusSnapshot.NotRepository();
+        }
+
+        var root = topLevel.StandardOutput.Trim();
+        if (root.Length > 0 && !GitStatusSnapshot.IsSamePath(root, workingDirectory))
+        {
+            return GitStatusSnapshot.InParentRepository(root);
+        }
+
+        // ③ 分支名：symbolic-ref 在"零提交仓库"里也有效；失败说明处于分离头指针
         var branch = await RunAsync(new[] { "symbolic-ref", "--short", "HEAD" }, workingDirectory, cancellationToken)
             .ConfigureAwait(false);
         var branchText = branch.Success
@@ -143,7 +197,7 @@ public sealed class GitRunner : IGitRunner
             : (await RunAsync(new[] { "rev-parse", "--abbrev-ref", "HEAD" }, workingDirectory, cancellationToken)
                 .ConfigureAwait(false)).StandardOutput;
 
-        // ③ 改动数：--porcelain 每行一个条目，含未跟踪文件
+        // ④ 改动数：--porcelain 每行一个条目，含未跟踪文件
         var status = await RunAsync(new[] { "status", "--porcelain" }, workingDirectory, cancellationToken)
             .ConfigureAwait(false);
 

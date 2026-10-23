@@ -47,6 +47,9 @@ public sealed class ShellContext
     /// <summary>组件识别（只读扫描，不落库）。</summary>
     public required ComponentScanner Components { get; init; }
 
+    /// <summary>模板升级检测与"只加不删"补结构。</summary>
+    public required TemplateUpgradeService Upgrades { get; init; }
+
     /// <summary>Git CLI 封装：生成时 init，详情页查实时状态。</summary>
     public required IGitRunner Git { get; init; }
 

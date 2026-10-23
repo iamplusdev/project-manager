@@ -27,6 +27,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _isSidebarCollapsed;
     private ShellSection _section = ShellSection.Projects;
     private IReadOnlyList<ProjectComponent> _components = Array.Empty<ProjectComponent>();
+    private UpgradePlan? _upgradePlan;
     private string _gitSummary = string.Empty;
     private bool _isLoadingFacts;
     private int _factsVersion;
@@ -211,8 +212,53 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    // ── 详情页的 Git 实时状态 ────────────────────────────────────────────
+    // ── 详情页的模板同步（WP3.5） ────────────────────────────────────────
 
+    /// <summary>与当前模板的对齐预览。只读比对，选中项目时计算。</summary>
+    public UpgradePlan? UpgradePlan
+    {
+        get => _upgradePlan;
+        private set
+        {
+            if (!SetProperty(ref _upgradePlan, value))
+            {
+                return;
+            }
+
+            Raise(nameof(UpgradeSummary), nameof(CanApplyUpgrade), nameof(MissingDirectories), nameof(HasMissingDirectories));
+        }
+    }
+
+    public string UpgradeSummary => _upgradePlan?.Message ?? string.Empty;
+
+    /// <summary>是否可以执行"补新增目录"（仅待升级且确有缺失时）。</summary>
+    public bool CanApplyUpgrade => _upgradePlan?.CanApply == true;
+
+    public IReadOnlyList<string> MissingDirectories => _upgradePlan?.MissingDirectories ?? Array.Empty<string>();
+
+    public bool HasMissingDirectories => MissingDirectories.Count > 0;
+
+    /// <summary>
+    /// 执行"只加不删"补结构。返回结果供 UI 提示；执行后重新比对，提示自动变成"已对齐"。
+    /// </summary>
+    public UpgradeOutcome? ApplyUpgrade()
+    {
+        if (_selected is not { } project || _upgradePlan is not { } plan || !plan.CanApply)
+        {
+            return null;
+        }
+
+        if (!_context.Templates.TryGetValue(project.TemplateName, out var template))
+        {
+            return null;
+        }
+
+        var outcome = _context.Upgrades.Apply(project.Path, template, plan);
+        _ = LoadProjectFactsAsync(project);
+        return outcome;
+    }
+
+    // ── 详情页的 Git 实时状态 ────────────────────────────────────────────
     /// <summary>Git 状态摘要。每次打开项目现查，不落库（方案第 4 节：Git 实时状态不入库）。</summary>
     public string GitSummary
     {
@@ -274,6 +320,7 @@ public sealed class MainViewModel : ObservableObject
         if (project is null)
         {
             Components = Array.Empty<ProjectComponent>();
+            UpgradePlan = null;
             GitSummary = string.Empty;
             return;
         }
@@ -281,14 +328,25 @@ public sealed class MainViewModel : ObservableObject
         GitSummary = "读取中…";
 
         var whitelist = ResolveComponentWhitelist(project);
+        _context.Templates.TryGetValue(project.TemplateName, out var template);
+
         IReadOnlyList<ProjectComponent> components;
+        UpgradePlan plan;
         try
         {
-            components = await Task.Run(() => _context.Components.Scan(project.Path, whitelist)).ConfigureAwait(true);
+            // 扫描与比对都要读磁盘，一起丢到后台；两者都不写文件
+            (components, plan) = await Task.Run(() => (
+                _context.Components.Scan(project.Path, whitelist),
+                _context.Upgrades.Plan(project.Path, project.TemplateName, template))).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             components = Array.Empty<ProjectComponent>();
+            plan = new UpgradePlan
+            {
+                State = UpgradeState.NotManaged,
+                Message = $"读取项目目录失败：{ex.Message}",
+            };
         }
 
         if (version != _factsVersion)
@@ -297,6 +355,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Components = components;
+        UpgradePlan = plan;
 
         try
         {

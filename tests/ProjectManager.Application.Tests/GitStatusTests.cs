@@ -12,7 +12,37 @@ public static class GitStatusTests
         CountsChangedFiles();
         HandlesEmptyBranch();
         SummaryTexts();
+        SamePathTolerance();
         RealRepositoryRoundTrip();
+        DoesNotInheritParentRepository();
+        NestedRepositoryWins();
+    }
+
+    /// <summary>
+    /// 判定「本目录是不是仓库根」靠路径比较，而 git 回来的路径与用户给的路径在
+    /// 尾分隔符、分隔符风格、盘符大小写上都不保证一致——比较必须容忍这三点。
+    /// </summary>
+    private static void SamePathTolerance()
+    {
+        Check.That(
+            GitStatusSnapshot.IsSamePath(@"D:\work\demo", @"D:\work\demo\"),
+            "尾分隔符不同应视为同一目录");
+
+        Check.That(
+            GitStatusSnapshot.IsSamePath(@"D:\work\demo", "D:/work/demo"),
+            "分隔符风格不同应视为同一目录");
+
+        Check.That(
+            GitStatusSnapshot.IsSamePath(@"D:\work\demo", @"d:\WORK\Demo"),
+            "Windows 上大小写不同应视为同一目录");
+
+        Check.That(
+            !GitStatusSnapshot.IsSamePath(@"D:\work\demo", @"D:\work\demo2"),
+            "前缀相同的不同目录不算同一目录");
+
+        Check.That(
+            !GitStatusSnapshot.IsSamePath(@"D:\work\demo", @"D:\work"),
+            "父目录不等于子目录");
     }
 
     private static void ParsesCleanRepository()
@@ -92,5 +122,70 @@ public static class GitStatusTests
         var none = git.GetStatusAsync(plain.Root).GetAwaiter().GetResult();
         Check.That(!none.IsRepository, "普通目录不应被识别为仓库");
         Check.Equal("未初始化 Git", none.Summary, "普通目录的摘要应为未初始化 Git");
+    }
+
+    /// <summary>
+    /// 真缺陷回归：项目放在别的仓库目录里（monorepo 子目录、或本项目自己被当成演示项目打开时），
+    /// <c>rev-parse --is-inside-work-tree</c> 会返回 true，而上层的分支与改动数会被当成本项目的状态。
+    /// 必须靠 <c>--show-toplevel</c> 比对识别出来。
+    /// </summary>
+    private static void DoesNotInheritParentRepository()
+    {
+        var git = new GitRunner();
+        if (!git.IsAvailableAsync().GetAwaiter().GetResult())
+        {
+            Console.WriteLine("  · 已跳过上层仓库用例（本机无 git）");
+            return;
+        }
+
+        using var workspace = new TempWorkspace("git-parent");
+        var init = git.InitAsync(workspace.Root).GetAwaiter().GetResult();
+        Check.That(init.Success, $"上层仓库 init 应成功，实际：{init.Message}");
+
+        // 让上层仓库变脏：如果实现有缺陷，这个改动数会漏到子目录的查询结果里
+        File.WriteAllText(Path.Combine(workspace.Root, "parent-dirty.txt"), "x");
+
+        var child = workspace.NewTarget("packages/app");
+        var snapshot = git.GetStatusAsync(child).GetAwaiter().GetResult();
+
+        Check.That(!snapshot.IsRepository, "子目录不应被识别为独立仓库");
+        Check.That(snapshot.ParentRepository is not null, "应记录上层仓库根以便向用户解释");
+        Check.That(
+            snapshot.ParentRepository is not null
+                && GitStatusSnapshot.IsSamePath(snapshot.ParentRepository, workspace.Root),
+            "上层仓库根应指向真实顶层目录");
+        Check.Equal(0, snapshot.ChangedFiles, "不得继承上层仓库的改动数");
+        Check.Equal(string.Empty, snapshot.Branch, "不得冒用上层仓库的分支名");
+
+        var summary = snapshot.Summary;
+        Check.That(
+            summary.Contains("位于上层仓库", StringComparison.Ordinal),
+            $"摘要应说明原因，实际：{summary}");
+        Check.That(
+            summary.Contains(Path.GetFileName(workspace.Root), StringComparison.Ordinal),
+            $"摘要应带上层仓库名，实际：{summary}");
+    }
+
+    /// <summary>反之：子目录里自己 <c>git init</c> 过的，必须认成独立仓库。</summary>
+    private static void NestedRepositoryWins()
+    {
+        var git = new GitRunner();
+        if (!git.IsAvailableAsync().GetAwaiter().GetResult())
+        {
+            Console.WriteLine("  · 已跳过嵌套仓库用例（本机无 git）");
+            return;
+        }
+
+        using var workspace = new TempWorkspace("git-nested");
+        Check.That(git.InitAsync(workspace.Root).GetAwaiter().GetResult().Success, "外层 init 应成功");
+
+        var nestedRoot = workspace.NewTarget("nested");
+        Check.That(git.InitAsync(nestedRoot).GetAwaiter().GetResult().Success, "内层 init 应成功");
+
+        var snapshot = git.GetStatusAsync(nestedRoot).GetAwaiter().GetResult();
+
+        Check.That(snapshot.IsRepository, "自建仓库的子目录应识别为独立仓库");
+        Check.That(snapshot.ParentRepository is null, "独立仓库不应带上层仓库标记");
+        Check.Equal("main", snapshot.Branch, "应读到内层仓库的分支");
     }
 }
