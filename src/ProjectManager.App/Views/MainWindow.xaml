@@ -43,6 +43,27 @@
             <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+
+        <!-- 导航选中态跟随当前页，而不是写死在 XAML 里 -->
+        <Style x:Key="PmNavProjects" TargetType="Button" BasedOn="{StaticResource PmNavButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsProjectsSection}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PmNavComponents" TargetType="Button" BasedOn="{StaticResource PmNavButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsComponentsSection}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -247,13 +268,13 @@
                 <DockPanel>
                     <!-- 导航四项：仅「项目」已开放，其余按里程碑置灰（UI 方案 6.3） -->
                     <StackPanel DockPanel.Dock="Top" Margin="8,10,8,6">
-                        <Button Style="{StaticResource PmNavButtonActive}" ToolTip="项目">
+                        <Button Click="OnShowProjectsClick" Style="{StaticResource PmNavProjects}" ToolTip="项目">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE8B7;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="项目" />
                             </StackPanel>
                         </Button>
-                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="组件识别（M3 起开放）">
+                        <Button Click="OnShowComponentsClick" Style="{StaticResource PmNavComponents}" ToolTip="组件（WP3.1 已开放）">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE71D;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="组件" />
@@ -363,6 +384,9 @@
                     </Border.Style>
                     <TextBlock Style="{StaticResource PmCaption}" Text="{Binding TemplateWarning}" />
                 </Border>
+
+                <!-- ═══ 项目页（三态） ═══ -->
+                <Grid Visibility="{Binding IsProjectsSection, Converter={StaticResource BoolToVis}}">
 
                 <!-- ① 空态 -->
                 <Grid Visibility="{Binding ShowEmptyState, Converter={StaticResource BoolToVis}}">
@@ -487,15 +511,98 @@
 
                         <Border Margin="0,12,0,0" Style="{StaticResource PmCard}">
                             <StackPanel>
+                                <TextBlock Style="{StaticResource PmSectionTitle}" Text="仓库状态" />
+                                <TextBlock Margin="0,6,0,0"
+                                           Style="{StaticResource PmCaption}"
+                                           Text="{Binding GitSummary}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,12,0,0" Style="{StaticResource PmCard}">
+                            <StackPanel>
                                 <TextBlock Style="{StaticResource PmSectionTitle}" Text="待接入" />
                                 <TextBlock Margin="0,6,0,0"
                                            Style="{StaticResource PmCaption}"
-                                           Text="组件识别、Git 工作台与发版流水线按里程碑 M3/M4 接入，届时本页会展开为仓库与组件的实时视图。"
+                                           Text="Git 工作台（提交/同步）与发版流水线按里程碑 M3/M4 接入；组件清单已可在侧栏「组件」页查看。"
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
+                </Grid>
+
+                <!-- ═══ 组件页（WP3.1） ═══ -->
+                <Grid Visibility="{Binding IsComponentsSection, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="24,20,24,10" Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource PmSectionTitle}" Text="组件" />
+                        <TextBlock Margin="8,0,0,0"
+                                   Style="{StaticResource PmCaption}"
+                                   Text="{Binding ComponentCountText}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1"
+                               Margin="24,8"
+                               Text="{Binding ComponentHint}"
+                               TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasComponents}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding HasComponents, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl Margin="24,0,24,20" ItemsSource="{Binding Components}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,8" Style="{StaticResource PmCard}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                           Text="{Binding Name}" />
+                                                <TextBlock Margin="0,2,0,0"
+                                                           Style="{StaticResource PmCaption}"
+                                                           Text="{Binding RelativePath}" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
+                                                <TextBlock Margin="0,0,8,0"
+                                                           VerticalAlignment="Center"
+                                                           Style="{StaticResource PmCaption}"
+                                                           Text="{Binding MarkerFile}" />
+                                                <Border Style="{StaticResource PmChip}">
+                                                    <TextBlock FontSize="10"
+                                                               Foreground="{DynamicResource PmAccentBrush}"
+                                                               Text="{Binding Kind}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
         </Grid>
 

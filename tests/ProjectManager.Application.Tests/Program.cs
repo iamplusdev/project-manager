@@ -7,6 +7,8 @@ try
     WizardTests.Run();
     ImportTests.Run();
     ProjectListTests.Run();
+    ComponentScannerTests.Run();
+    GitStatusTests.Run();
 }
 catch (Exception ex)
 {

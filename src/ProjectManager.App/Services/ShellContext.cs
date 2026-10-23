@@ -1,7 +1,9 @@
 using System.IO;
+using ProjectManager.Application.Components;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Wizard;
 using ProjectManager.App.Theming;
+using ProjectManager.CliInterop;
 using ProjectManager.Scaffolding.Models;
 using ProjectManager.Scaffolding.Scaffolding;
 using ProjectManager.Storage;
@@ -41,6 +43,12 @@ public sealed class ShellContext
 
     /// <summary>「打开已有项目」：把已存在的目录接入清单。</summary>
     public required ProjectImporter Importer { get; init; }
+
+    /// <summary>组件识别（只读扫描，不落库）。</summary>
+    public required ComponentScanner Components { get; init; }
+
+    /// <summary>Git CLI 封装：生成时 init，详情页查实时状态。</summary>
+    public required IGitRunner Git { get; init; }
 
     public bool CanScaffold => Templates.Count > 0;
 

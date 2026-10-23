@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using ProjectManager.Application.Components;
 using ProjectManager.Application.Projects;
 using ProjectManager.Application.Wizard;
 using ProjectManager.App.Theming;
@@ -92,6 +93,8 @@ public static class Bootstrapper
             Coordinator = coordinator,
             Projects = new ProjectListModel(repository),
             Importer = new ProjectImporter(repository),
+            Components = new ComponentScanner(),
+            Git = git,
             Theme = theme,
             Repository = repository,
         };

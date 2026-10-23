@@ -45,6 +45,10 @@ public sealed class FaultInjectingFileSystem : IFileSystem
 
     public bool DirectoryExists(string path) => _inner.DirectoryExists(path);
 
+    public IReadOnlyList<string> EnumerateDirectories(string path) => _inner.EnumerateDirectories(path);
+
+    public IReadOnlyList<string> EnumerateFiles(string path) => _inner.EnumerateFiles(path);
+
     public bool IsSymbolicLink(string path) => _inner.IsSymbolicLink(path);
 
     public void CreateDirectory(string path)

@@ -19,6 +19,12 @@ public sealed class FakeGitRunner : IGitRunner
             ? new GitCommandResult(true, 0, "Initialized empty Git repository", string.Empty)
             : new GitCommandResult(false, 1, string.Empty, "模拟：git 不可用"));
     }
+
+    /// <summary>详情页用的仓库状态；默认"不是仓库"，需要时由用例设定。</summary>
+    public GitStatusSnapshot Status { get; set; } = GitStatusSnapshot.NotRepository();
+
+    public Task<GitStatusSnapshot> GetStatusAsync(string workingDirectory, CancellationToken cancellationToken = default)
+        => Task.FromResult(Status);
 }
 
 /// <summary>写入必失败的清单仓储，用于验证"文件已生成 + 可重试注册"的降级语义。</summary>

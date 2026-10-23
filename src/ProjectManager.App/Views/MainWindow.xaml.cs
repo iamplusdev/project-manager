@@ -80,6 +80,10 @@ public partial class MainWindow : Window
 
     // ── 侧栏 ────────────────────────────────────────────────────────────
 
+    private void OnShowProjectsClick(object sender, RoutedEventArgs e) => _viewModel.ShowProjects();
+
+    private void OnShowComponentsClick(object sender, RoutedEventArgs e) => _viewModel.ShowComponents();
+
     private async void OnToggleSidebarClick(object sender, RoutedEventArgs e)
     {
         _viewModel.IsSidebarCollapsed = !_viewModel.IsSidebarCollapsed;

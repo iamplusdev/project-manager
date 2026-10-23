@@ -11,6 +11,12 @@ public interface IFileSystem
 
     bool DirectoryExists(string path);
 
+    /// <summary>枚举直接子目录（不递归）。目录不可读时返回空集合，而不是抛异常——扫描类功能不应中断 UI。</summary>
+    IReadOnlyList<string> EnumerateDirectories(string path);
+
+    /// <summary>枚举直接子文件（不递归），同样在不可读时返回空集合。</summary>
+    IReadOnlyList<string> EnumerateFiles(string path);
+
     bool IsSymbolicLink(string path);
 
     void CreateDirectory(string path);
@@ -43,6 +49,34 @@ public sealed class PhysicalFileSystem : IFileSystem
     public bool FileExists(string path) => File.Exists(path);
 
     public bool DirectoryExists(string path) => Directory.Exists(path);
+
+    public IReadOnlyList<string> EnumerateDirectories(string path)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(path)
+                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    public IReadOnlyList<string> EnumerateFiles(string path)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(path)
+                .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
+        {
+            return Array.Empty<string>();
+        }
+    }
 
     public bool IsSymbolicLink(string path)
     {
