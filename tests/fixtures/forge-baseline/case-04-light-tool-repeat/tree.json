@@ -1,0 +1,117 @@
+{
+  "project": "MyProject",
+  "entries": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "sha256": "464ac8cedde620acc5f357472ad9e54c4c19bd523005945d207e341f13b4fb7d",
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "README.md",
+      "type": "file",
+      "sha256": "e978af8789620adb0c0053a6ea2661e3912d721db5b20de83375d5a0fbf38f47",
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "assets",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "assets/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "config",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "config/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "docs",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "docs/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "output",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "output/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "scripts",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "scripts/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "src",
+      "type": "dir",
+      "sha256": null,
+      "isPlaceholder": false,
+      "ignored": false
+    },
+    {
+      "path": "src/.gitkeep",
+      "type": "file",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "isPlaceholder": true,
+      "ignored": false
+    },
+    {
+      "path": "structure.md",
+      "type": "file",
+      "sha256": "ec934b53e545d28aae66e6d077dd7ae216e4fd0e7610c540ffb4709026c38e3f",
+      "isPlaceholder": false,
+      "ignored": false
+    }
+  ],
+  "counts": {
+    "dirs": 6,
+    "files": 9,
+    "placeholders": 6,
+    "backups": 0,
+    "preservedGitignore": false
+  }
+}

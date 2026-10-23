@@ -1,0 +1,6 @@
+output/
+bin/
+obj/
+*.user
+*.log
+.vs/
