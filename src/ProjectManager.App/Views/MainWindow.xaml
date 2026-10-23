@@ -85,6 +85,16 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="PmNavHistory" TargetType="Button" BasedOn="{StaticResource PmNavButton}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsHistorySection}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PmAccentSubtleBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- 仓库清单状态徽标：颜色只表达"要不要处理"，不表达技术分类 -->
         <Style x:Key="PmRepoChip" TargetType="Border" BasedOn="{StaticResource PmChip}">
             <Setter Property="Background" Value="{DynamicResource PmSurfaceAltBrush}" />
@@ -319,7 +329,7 @@
                     BorderBrush="{DynamicResource PmBorderBrush}"
                     BorderThickness="0,0,1,0">
                 <DockPanel>
-                    <!-- 导航六项：项目/组件/仓库/变更已开放；历史/发版按里程碑置灰（UI 方案 §6.3 补注） -->
+                    <!-- 导航六项：项目/组件/仓库/变更/历史已开放；发版按里程碑置灰（UI 方案 §6.3 补注） -->
                     <StackPanel DockPanel.Dock="Top" Margin="8,10,8,6">
                         <Button Click="OnShowProjectsClick" Style="{StaticResource PmNavProjects}" ToolTip="项目">
                             <StackPanel Orientation="Horizontal">
@@ -345,7 +355,7 @@
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="变更" />
                             </StackPanel>
                         </Button>
-                        <Button IsEnabled="False" Style="{StaticResource PmNavButton}" ToolTip="提交历史（WP5.3 之后开放）">
+                        <Button Click="OnShowHistoryClick" Style="{StaticResource PmNavHistory}" ToolTip="历史：提交记录与每次提交改了什么（WP5.4）">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource PmIcon}" Text="&#xE81C;" />
                                 <TextBlock Style="{StaticResource PmNavLabel}" Text="历史" />
@@ -1068,6 +1078,230 @@
                                        Text="{Binding CommitHint}" />
                         </Grid>
                     </Border>
+                </Grid>
+
+                <!-- ═══ 历史页（M5 · WP5.4：提交历史） ═══ -->
+                <Grid Visibility="{Binding IsHistorySection, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 页头 -->
+                    <Grid Grid.Row="0" Margin="24,20,24,10">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource PmSectionTitle}" Text="历史" />
+                            <TextBlock Margin="8,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource PmCaption}"
+                                       Text="{Binding HistorySummary}" />
+                        </StackPanel>
+                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                            <!-- 只有真还有更早的提交时才露面：常驻一个永远点不亮的按钮是纯噪声 -->
+                            <Button Height="26"
+                                    Padding="10,0"
+                                    Click="OnLoadMoreHistoryClick"
+                                    Content="加载更多"
+                                    IsEnabled="{Binding CanLoadMoreHistory}"
+                                    Style="{StaticResource PmSecondaryButton}"
+                                    ToolTip="再读 50 条更早的提交"
+                                    Visibility="{Binding HasMoreHistory, Converter={StaticResource BoolToVis}}" />
+                            <Button Height="26"
+                                    Margin="8,0,0,0"
+                                    Padding="10,0"
+                                    Click="OnRefreshHistoryClick"
+                                    Content="刷新"
+                                    Style="{StaticResource PmSecondaryButton}"
+                                    ToolTip="重新读取提交历史（不读缓存）" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="24,0,24,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 提交清单 -->
+                        <Border Grid.Column="0" Style="{StaticResource PmCard}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Margin="12,12,12,8"
+                                           Text="{Binding HistoryHint}"
+                                           TextWrapping="Wrap"
+                                           Visibility="{Binding HasHistoryHint, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock.Style>
+                                        <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock" />
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <ListBox x:Name="HistoryList"
+                                         Margin="4,4,4,6"
+                                         ItemsSource="{Binding HistoryItems}"
+                                         SelectedItem="{Binding SelectedCommit, Mode=TwoWay}"
+                                         Style="{StaticResource PmListBox}"
+                                         Visibility="{Binding HasHistory, Converter={StaticResource BoolToVis}}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0"
+                                                               FontSize="12"
+                                                               Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                               Text="{Binding Subject}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Subject}" />
+
+                                                    <!-- 合并/根提交：只有这两种值得提醒，普通提交不加噪声 -->
+                                                    <Border x:Name="KindChip"
+                                                            Grid.Column="1"
+                                                            Margin="6,0,0,0"
+                                                            Padding="5,1"
+                                                            VerticalAlignment="Center"
+                                                            Background="{DynamicResource PmSurfaceAltBrush}"
+                                                            CornerRadius="3"
+                                                            Visibility="{Binding HasKindNote, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock FontSize="10"
+                                                                   Foreground="{DynamicResource PmTextSecondaryBrush}"
+                                                                   Text="{Binding KindNote}" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <StackPanel Margin="0,3,0,0" Orientation="Horizontal">
+                                                    <Border Margin="0,0,6,0"
+                                                            Padding="5,1"
+                                                            VerticalAlignment="Center"
+                                                            Background="{DynamicResource PmAccentSubtleBrush}"
+                                                            CornerRadius="3"
+                                                            Visibility="{Binding HasRefs, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock FontSize="10"
+                                                                   Foreground="{DynamicResource PmAccentBrush}"
+                                                                   Text="{Binding RefsText}" />
+                                                    </Border>
+                                                    <TextBlock Style="{StaticResource PmCaption}"
+                                                               Text="{Binding MetaText}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 提交详情 -->
+                        <Border Grid.Column="2" Style="{StaticResource PmCard}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Margin="16,16,16,10"
+                                           Text="选左边一条提交，看它的完整信息与改动了哪些文件。"
+                                           TextWrapping="Wrap">
+                                    <!-- 工程里只有正向的 BoolToVis，没有反向转换器：反向一律用触发器，
+                                         少一个资源就少一处找不着的 StaticResource -->
+                                    <TextBlock.Style>
+                                        <Style BasedOn="{StaticResource PmCaption}" TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasCommitDetail}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <StackPanel DockPanel.Dock="Top"
+                                            Margin="16,14,16,10"
+                                            Visibility="{Binding HasCommitDetail, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                               Text="{Binding CommitDetailTitle}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,4,0,0"
+                                               Style="{StaticResource PmCaption}"
+                                               Text="{Binding CommitDetailMeta}" />
+                                </StackPanel>
+
+                                <Border DockPanel.Dock="Top"
+                                        Margin="16,0,16,10"
+                                        Style="{StaticResource PmSeparator}"
+                                        Visibility="{Binding HasCommitDetail, Converter={StaticResource BoolToVis}}" />
+
+                                <ScrollViewer Padding="16,0,16,16"
+                                              VerticalScrollBarVisibility="Auto"
+                                              Visibility="{Binding HasCommitDetail, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource PmCaption}" Text="提交信息" />
+                                        <Border Margin="0,4,0,0"
+                                                Padding="10,8"
+                                                Background="{DynamicResource PmSurfaceAltBrush}"
+                                                CornerRadius="4">
+                                            <TextBlock FontFamily="Cascadia Mono, Consolas"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                       Text="{Binding CommitDetailMessage}"
+                                                       TextWrapping="Wrap" />
+                                        </Border>
+
+                                        <TextBlock Margin="0,16,0,0"
+                                                   Style="{StaticResource PmCaption}"
+                                                   Text="改动文件" />
+                                        <TextBlock Margin="0,2,0,0"
+                                                   Style="{StaticResource PmCaption}"
+                                                   Text="{Binding CommitDetailFilesSummary}" />
+
+                                        <ItemsControl Margin="0,6,0,0" ItemsSource="{Binding CommitDetailFiles}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock x:Name="FilePath"
+                                                                   Grid.Column="0"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource PmTextPrimaryBrush}"
+                                                                   Text="{Binding Path}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip="{Binding Path}" />
+
+                                                        <TextBlock x:Name="FileChange"
+                                                                   Grid.Column="1"
+                                                                   Margin="10,0,0,0"
+                                                                   FontFamily="Cascadia Mono, Consolas"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource PmTextSecondaryBrush}"
+                                                                   Text="{Binding ChangeText}" />
+                                                    </Grid>
+                                                    <DataTemplate.Triggers>
+                                                        <!-- 纯新增绿、纯删除红；混合改动保持中性（用两种颜色拆一个数字反而难读） -->
+                                                        <DataTrigger Binding="{Binding IsAddition}" Value="True">
+                                                            <Setter TargetName="FileChange" Property="Foreground" Value="{DynamicResource PmSuccessBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsDeletion}" Value="True">
+                                                            <Setter TargetName="FileChange" Property="Foreground" Value="{DynamicResource PmDangerBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsRename}" Value="True">
+                                                            <Setter TargetName="FilePath" Property="Foreground" Value="{DynamicResource PmAccentBrush}" />
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
                 </Grid>
             </Grid>
         </Grid>

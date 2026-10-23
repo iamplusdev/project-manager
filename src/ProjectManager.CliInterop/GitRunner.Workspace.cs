@@ -89,6 +89,62 @@ public sealed record GitCommitResult(bool Success, string Hash, string Subject, 
 
 public sealed partial class GitRunner
 {
+    /// <summary>仓库探测的四种结果。调用方对它们的处理不同，所以不能压成 bool。</summary>
+    internal enum GitProbeState
+    {
+        /// <summary>本目录就是仓库根。</summary>
+        Repository,
+
+        /// <summary>不是仓库。</summary>
+        NotRepository,
+
+        /// <summary>本目录在某个上层仓库里（工作台不能对它动手，否则会改到别人的仓库）。</summary>
+        ParentRepository,
+
+        /// <summary>探测本身失败：git 不可用、目录读不了。</summary>
+        Unavailable,
+    }
+
+    internal readonly record struct GitProbe(GitProbeState State, string? Error = null, string? ParentRoot = null);
+
+    /// <summary>
+    /// 判断「本目录是不是一个独立仓库的根」。
+    /// </summary>
+    /// <remarks>
+    /// <c>rev-parse --is-inside-work-tree</c> 是**向上查找**的：任何位于某个仓库子目录下的路径都会返回 true。
+    /// 只问这一句，就会把"项目放在别人的仓库里"误判成"项目自己是仓库"——变更页会把上层仓库的所有改动
+    /// 当成本项目的，暂存/提交更会直接作用到那个上层仓库上。所以必须再比 <c>--show-toplevel</c>。
+    /// </remarks>
+    private async Task<GitProbe> ProbeRepositoryAsync(string repositoryRoot, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(repositoryRoot))
+        {
+            return new GitProbe(GitProbeState.Unavailable, $"目录不存在：{repositoryRoot}");
+        }
+
+        var inside = await RunAsync(new[] { "rev-parse", "--is-inside-work-tree" }, repositoryRoot, cancellationToken)
+            .ConfigureAwait(false);
+        if (!inside.Success || !inside.StandardOutput.Contains("true", StringComparison.OrdinalIgnoreCase))
+        {
+            return new GitProbe(GitProbeState.NotRepository);
+        }
+
+        var topLevel = await RunAsync(new[] { "rev-parse", "--show-toplevel" }, repositoryRoot, cancellationToken)
+            .ConfigureAwait(false);
+        if (!topLevel.Success)
+        {
+            return new GitProbe(GitProbeState.NotRepository);
+        }
+
+        var root = topLevel.StandardOutput.Trim();
+        if (root.Length > 0 && !GitStatusSnapshot.IsSamePath(root, repositoryRoot))
+        {
+            return new GitProbe(GitProbeState.ParentRepository, null, root);
+        }
+
+        return new GitProbe(GitProbeState.Repository);
+    }
+
     /// <summary>
     /// 每仓库一把写锁。设计方案 §2.1 的"双引擎互斥"在本项目退化为"同进程并发写同一 index"：
     /// 两个 <c>git add</c> 同时跑会撞 <c>index.lock</c>，所以写操作必须串行。
@@ -100,29 +156,15 @@ public sealed partial class GitRunner
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
 
-        if (!Directory.Exists(repositoryRoot))
+        var probe = await ProbeRepositoryAsync(repositoryRoot, cancellationToken).ConfigureAwait(false);
+
+        if (probe.State == GitProbeState.Unavailable)
         {
-            return GitWorkingTree.Unavailable($"目录不存在：{repositoryRoot}");
+            return GitWorkingTree.Unavailable(probe.Error ?? "Git 不可用。");
         }
 
-        var probe = await RunAsync(new[] { "rev-parse", "--is-inside-work-tree" }, repositoryRoot, cancellationToken)
-            .ConfigureAwait(false);
-        if (!probe.Success || !probe.StandardOutput.Contains("true", StringComparison.OrdinalIgnoreCase))
-        {
-            return GitWorkingTree.NotRepository();
-        }
-
-        // 同样要确认仓库根就是本目录：工作台是"对某个项目的仓库动手"，
-        // 若这里是上层仓库的子目录，暂存/提交会作用到别人的仓库上——比状态显示错更严重
-        var topLevel = await RunAsync(new[] { "rev-parse", "--show-toplevel" }, repositoryRoot, cancellationToken)
-            .ConfigureAwait(false);
-        if (!topLevel.Success)
-        {
-            return GitWorkingTree.NotRepository();
-        }
-
-        var root = topLevel.StandardOutput.Trim();
-        if (root.Length > 0 && !GitStatusSnapshot.IsSamePath(root, repositoryRoot))
+        // 子目录与"不是仓库"在工作台上是同一种处境：不能在这里动手
+        if (probe.State != GitProbeState.Repository)
         {
             return GitWorkingTree.NotRepository();
         }

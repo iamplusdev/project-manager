@@ -11,7 +11,7 @@ using ProjectManager.Storage;
 
 namespace ProjectManager.App.ViewModels;
 
-/// <summary>侧栏主导航。M3 开了「项目」「组件」「仓库」三页，M5 补上「变更」。</summary>
+/// <summary>侧栏主导航。M3 开了「项目」「组件」「仓库」三页，M5 补上「变更」与「历史」。</summary>
 public enum ShellSection
 {
     Projects,
@@ -20,6 +20,9 @@ public enum ShellSection
 
     /// <summary>Git 工作台：待提交改动 + 差异预览 + 提交。</summary>
     Changes,
+
+    /// <summary>提交历史：选一条看完整信息与改动文件。</summary>
+    History,
 }
 
 /// <summary>
@@ -56,6 +59,16 @@ public sealed class MainViewModel : ObservableObject
     private bool _changesMessageIsError;
     private bool _isChangesBusy;
     private int _changesVersion;
+
+    // ── 历史页（WP5.4） ─────────────────────────────────────────────────
+    private GitHistoryView? _history;
+    private IReadOnlyList<GitCommitItem> _historyItems = Array.Empty<GitCommitItem>();
+    private GitCommitItem? _selectedCommit;
+    private GitCommitDetail? _commitDetail;
+    private IReadOnlyList<GitCommitFileItem> _commitFiles = Array.Empty<GitCommitFileItem>();
+    private bool _isHistoryBusy;
+    private int _historyVersion;
+    private int _detailVersion;
 
     public MainViewModel(ShellContext context)
     {
@@ -105,7 +118,7 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
-            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection), nameof(IsRepositoriesSection), nameof(IsChangesSection));
+            Raise(nameof(IsProjectsSection), nameof(IsComponentsSection), nameof(IsRepositoriesSection), nameof(IsChangesSection), nameof(IsHistorySection));
 
             // 切到仓库页即现查一遍：清单是"当下事实"，缓存只会在用户以为准确时骗人
             if (value == ShellSection.Repositories)
@@ -118,6 +131,12 @@ public sealed class MainViewModel : ObservableObject
             {
                 _ = LoadChangesAsync();
             }
+
+            // 历史页也一样：别处可能刚 push 了一批提交
+            if (value == ShellSection.History)
+            {
+                _ = LoadHistoryAsync();
+            }
         }
     }
 
@@ -129,6 +148,8 @@ public sealed class MainViewModel : ObservableObject
 
     public bool IsChangesSection => _section == ShellSection.Changes;
 
+    public bool IsHistorySection => _section == ShellSection.History;
+
     public void ShowProjects() => Section = ShellSection.Projects;
 
     public void ShowComponents() => Section = ShellSection.Components;
@@ -136,6 +157,8 @@ public sealed class MainViewModel : ObservableObject
     public void ShowRepositories() => Section = ShellSection.Repositories;
 
     public void ShowChanges() => Section = ShellSection.Changes;
+
+    public void ShowHistory() => Section = ShellSection.History;
 
     // ── 选中与主区三态 ───────────────────────────────────────────────────
 
@@ -169,6 +192,13 @@ public sealed class MainViewModel : ObservableObject
             if (_section == ShellSection.Changes)
             {
                 _ = LoadChangesAsync();
+            }
+
+            // 历史同理：上一个项目的提交绝不能留在列表里等着被点开
+            ResetHistoryState();
+            if (_section == ShellSection.History)
+            {
+                _ = LoadHistoryAsync();
             }
         }
     }
@@ -781,6 +811,300 @@ public sealed class MainViewModel : ObservableObject
         DiffRows = DiffRow.FromHunks(diff.Hunks);
         DiffStat = DiffRows.Count == 0 ? string.Empty : $"{diff.KindText} · {diff.Summary}";
         DiffHint = DiffRow.ExplainEmpty(diff);
+    }
+
+    // ── 历史页：提交历史（WP5.4） ────────────────────────────────────────
+
+    /// <summary>当前项目已加载的提交（新到旧）。</summary>
+    public IReadOnlyList<GitCommitItem> HistoryItems
+    {
+        get => _historyItems;
+        private set
+        {
+            if (SetProperty(ref _historyItems, value))
+            {
+                Raise(nameof(HasHistory), nameof(HasMoreHistory), nameof(HistorySummary));
+            }
+        }
+    }
+
+    public bool HasHistory => _historyItems.Count > 0;
+
+    public bool HasMoreHistory => _history?.HasMore == true;
+
+    public string HistorySummary => _history?.Summary ?? string.Empty;
+
+    /// <summary>空清单时的解释。有提交在就不显示。</summary>
+    public string HistoryHint
+    {
+        get
+        {
+            if (_selected is null)
+            {
+                return "先选一个项目，再看它的提交历史。";
+            }
+
+            return _history?.EmptyHint ?? "正在读取提交历史…";
+        }
+    }
+
+    public bool HasHistoryHint => !HasHistory && !IsHistoryBusy;
+
+    public bool IsHistoryBusy
+    {
+        get => _isHistoryBusy;
+        private set
+        {
+            if (SetProperty(ref _isHistoryBusy, value))
+            {
+                Raise(nameof(HasHistoryHint), nameof(CanLoadMoreHistory));
+            }
+        }
+    }
+
+    /// <summary>「加载更多」只在确实还有下一页、且当前没在忙时可点。</summary>
+    public bool CanLoadMoreHistory => HasMoreHistory && !_isHistoryBusy && !_isDetailBusy;
+
+    public GitCommitItem? SelectedCommit
+    {
+        get => _selectedCommit;
+        set
+        {
+            if (!SetProperty(ref _selectedCommit, value))
+            {
+                return;
+            }
+
+            _ = LoadCommitDetailAsync(value);
+        }
+    }
+
+    /// <summary>详情头的标题（提交全信息的第一行，通常等于 <c>Subject</c>）。</summary>
+    public string CommitDetailTitle => _commitDetail?.Commit.Subject ?? string.Empty;
+
+    /// <summary>详情头的元信息：短 hash · 作者 · 绝对时间。</summary>
+    public string CommitDetailMeta
+    {
+        get
+        {
+            if (_commitDetail is not { } detail)
+            {
+                return string.Empty;
+            }
+
+            var when = detail.Commit.AuthorDate is { } moment
+                ? moment.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                : "时间未知";
+
+            return $"{detail.Commit.ShortHash} · {detail.Commit.Author} · {when}";
+        }
+    }
+
+    /// <summary>完整提交信息（标题 + 正文）。正文为空时只显示标题，不留一大片空白。</summary>
+    public string CommitDetailMessage => _commitDetail?.Message ?? string.Empty;
+
+    public string CommitDetailFilesSummary => _commitDetail?.FilesSummary ?? string.Empty;
+
+    public IReadOnlyList<GitCommitFileItem> CommitDetailFiles
+    {
+        get => _commitFiles;
+        private set
+        {
+            if (SetProperty(ref _commitFiles, value))
+            {
+                Raise(nameof(HasCommitDetailFiles));
+            }
+        }
+    }
+
+    public bool HasCommitDetailFiles => _commitFiles.Count > 0;
+
+    public bool HasCommitDetail => _commitDetail is not null;
+
+    private bool _isDetailBusy;
+
+    public bool IsDetailBusy
+    {
+        get => _isDetailBusy;
+        private set
+        {
+            if (SetProperty(ref _isDetailBusy, value))
+            {
+                Raise(nameof(CanLoadMoreHistory));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 清空历史页展示态。**同时作废在途请求**：换项目时上一个项目的 <c>git log</c> 可能还在跑，
+    /// 它回来时若被写进列表，用户会看到"新项目的名字 + 旧项目的提交"。
+    /// </summary>
+    private void ResetHistoryState()
+    {
+        _historyVersion++;
+        _detailVersion++;
+        _history = null;
+        HistoryItems = Array.Empty<GitCommitItem>();
+        SelectedCommit = null;
+        _commitDetail = null;
+        CommitDetailFiles = Array.Empty<GitCommitFileItem>();
+        Raise(
+            nameof(HistorySummary),
+            nameof(HistoryHint),
+            nameof(HasHistoryHint),
+            nameof(HasMoreHistory),
+            nameof(CanLoadMoreHistory),
+            nameof(HasCommitDetail),
+            nameof(CommitDetailTitle),
+            nameof(CommitDetailMeta),
+            nameof(CommitDetailMessage),
+            nameof(CommitDetailFilesSummary));
+    }
+
+    public Task RefreshHistoryAsync() => LoadHistoryAsync();
+
+    /// <summary>加载下一页并**追加**（不替换已加载的部分，否则用户的阅读位置会被弹回顶部）。</summary>
+    public Task LoadMoreHistoryAsync() => LoadHistoryAsync(append: true);
+
+    private async Task LoadHistoryAsync(bool append = false)
+    {
+        var version = ++_historyVersion;
+
+        if (_selected is not { } project)
+        {
+            _history = null;
+            HistoryItems = Array.Empty<GitCommitItem>();
+            SelectedCommit = null;
+            Raise(nameof(HistorySummary), nameof(HistoryHint), nameof(HasHistoryHint), nameof(HasMoreHistory), nameof(CanLoadMoreHistory));
+            return;
+        }
+
+        IsHistoryBusy = true;
+
+        // 追加时从已加载条数续读；刷新时从头来
+        var skip = append ? _historyItems.Count : 0;
+
+        GitHistoryView view;
+        try
+        {
+            view = await _context.History.LoadAsync(project.Path, skip).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            if (version == _historyVersion)
+            {
+                IsHistoryBusy = false;
+                _history = null;
+                HistoryItems = Array.Empty<GitCommitItem>();
+                SelectedCommit = null;
+                Raise(nameof(HistorySummary), nameof(HistoryHint), nameof(HasHistoryHint), nameof(HasMoreHistory), nameof(CanLoadMoreHistory));
+            }
+
+            return;
+        }
+
+        if (version != _historyVersion)
+        {
+            return;
+        }
+
+        _history = view;
+        IsHistoryBusy = false;
+
+        var page = view.Page.Commits.Select(entry => new GitCommitItem(entry, view.Now)).ToList();
+
+        if (!append)
+        {
+            HistoryItems = page;
+
+            // 刷新后尽量停在原处：hash 不变说明同一条提交还在
+            var previousHash = _selectedCommit?.Hash;
+            var keep = previousHash is null
+                ? null
+                : page.FirstOrDefault(item => string.Equals(item.Hash, previousHash, StringComparison.OrdinalIgnoreCase));
+
+            SelectedCommit = keep ?? page.FirstOrDefault();
+        }
+        else if (page.Count == 0)
+        {
+            // "还有更多"是上一次的判断；这次没取到新东西说明到头了，必须纠正，
+            // 否则「加载更多」会永远亮着、点了没反应
+            _history = view with { Page = view.Page with { HasMore = false, LoadedCount = _historyItems.Count } };
+            HistoryItems = _historyItems;
+            Raise(nameof(HasMoreHistory), nameof(CanLoadMoreHistory), nameof(HistorySummary));
+        }
+        else
+        {
+            // 换 ItemsSource 的引用会让 ListBox 把 SelectedItem 推成 null（详情面板随之清空）。
+            // 追加时选中的那条一定还在，主动再选回去——"加载更多把正在看的东西弄没了"是最恼人的一种小毛病
+            var keepHash = _selectedCommit?.Hash;
+            HistoryItems = _historyItems.Concat(page).ToList();
+
+            if (keepHash is not null)
+            {
+                var restored = _historyItems.FirstOrDefault(
+                    item => string.Equals(item.Hash, keepHash, StringComparison.OrdinalIgnoreCase));
+
+                if (restored is not null)
+                {
+                    SelectedCommit = restored;
+                }
+            }
+        }
+
+        Raise(nameof(HistorySummary), nameof(HistoryHint), nameof(HasHistoryHint), nameof(HasMoreHistory), nameof(CanLoadMoreHistory));
+    }
+
+    private async Task LoadCommitDetailAsync(GitCommitItem? item)
+    {
+        var version = ++_detailVersion;
+
+        if (_selected is not { } project || item is null)
+        {
+            _commitDetail = null;
+            CommitDetailFiles = Array.Empty<GitCommitFileItem>();
+            Raise(nameof(HasCommitDetail), nameof(CommitDetailTitle), nameof(CommitDetailMeta), nameof(CommitDetailMessage), nameof(CommitDetailFilesSummary));
+            return;
+        }
+
+        _commitDetail = null;
+        CommitDetailFiles = Array.Empty<GitCommitFileItem>();
+        IsDetailBusy = true;
+        Raise(nameof(HasCommitDetail), nameof(CommitDetailTitle), nameof(CommitDetailMeta), nameof(CommitDetailFilesSummary));
+
+        GitCommitDetail detail;
+        try
+        {
+            detail = await _context.History.LoadDetailAsync(project.Path, item.Entry).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            if (version == _detailVersion)
+            {
+                IsDetailBusy = false;
+                _commitDetail = new GitCommitDetail { Commit = item.Entry, Error = $"读取提交详情失败：{ex.Message}" };
+                Raise(nameof(HasCommitDetail), nameof(CommitDetailTitle), nameof(CommitDetailMeta), nameof(CommitDetailMessage), nameof(CommitDetailFilesSummary));
+            }
+
+            return;
+        }
+
+        // 用户可能已经点了别的提交：过期结果直接丢，否则会出现"标题是 A、文件是 B"
+        if (version != _detailVersion)
+        {
+            return;
+        }
+
+        IsDetailBusy = false;
+        _commitDetail = detail;
+        CommitDetailFiles = detail.Files.Select(file => new GitCommitFileItem(file)).ToList();
+
+        Raise(
+            nameof(HasCommitDetail),
+            nameof(CommitDetailTitle),
+            nameof(CommitDetailMeta),
+            nameof(CommitDetailMessage),
+            nameof(CommitDetailFilesSummary));
     }
 
     // ── 详情页的模板同步（WP3.5） ────────────────────────────────────────

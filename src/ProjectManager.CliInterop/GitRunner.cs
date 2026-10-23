@@ -116,7 +116,7 @@ public sealed record GitStatusSnapshot(bool IsRepository, string Branch, int Cha
 /// 分部类拆在 <c>GitRunner.Workspace.cs</c>：工作区读写（status/diff/add/commit）与
 /// 仓库探测的失败语义不同，分文件更利于单独审视"写操作是否安全"。
 /// </remarks>
-public sealed partial class GitRunner : IGitRunner, IGitWorkspaceRunner
+public sealed partial class GitRunner : IGitRunner, IGitWorkspaceRunner, IGitHistoryRunner
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 

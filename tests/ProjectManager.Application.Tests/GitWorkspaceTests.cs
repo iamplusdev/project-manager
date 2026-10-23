@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Text;
 using ProjectManager.Application.Git;
 using ProjectManager.CliInterop;
+using static ProjectManager.Application.Tests.GitTestSupport;
 
 namespace ProjectManager.Application.Tests;
 
@@ -540,47 +540,7 @@ public static class GitWorkspaceTests
         Check.Equal("old-name.cs → new-name.cs", renamed?.DisplayPath, "展示为 旧 → 新");
     }
 
-    // ── 辅助 ─────────────────────────────────────────────────────────────
-
-    private static bool GitAvailable() => new GitRunner().IsAvailableAsync().GetAwaiter().GetResult();
-
-    /// <summary>提交需要身份；测试仓库显式配置，避免依赖开发机的全局 git 配置。</summary>
-    private static void ConfigureIdentity(string root)
-    {
-        RunGit(root, "config", "user.name", "PM Test");
-        RunGit(root, "config", "user.email", "pm-test@example.invalid");
-        // 关掉提交签名：有没有 gpg 不该影响测试结论
-        RunGit(root, "config", "commit.gpgsign", "false");
-    }
-
-    private static (int ExitCode, string Output) RunGit(string root, params string[] arguments)
-    {
-        var startInfo = new ProcessStartInfo("git")
-        {
-            WorkingDirectory = root,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using var process = Process.Start(startInfo);
-        if (process is null)
-        {
-            return (-1, string.Empty);
-        }
-
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(15_000);
-        return (process.ExitCode, output);
-    }
+    // ── 辅助（GitAvailable / ConfigureIdentity / RunGit 见 GitTestSupport） ──
 
     /// <summary>标题建议的纯函数在应用层，包一层只是让上面的断言读起来集中。</summary>
     private static class ViewModelsTitleProxy

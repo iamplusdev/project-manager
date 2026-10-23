@@ -89,6 +89,25 @@ public partial class MainWindow : Window
 
     private void OnShowChangesClick(object sender, RoutedEventArgs e) => _viewModel.ShowChanges();
 
+    private void OnShowHistoryClick(object sender, RoutedEventArgs e) => _viewModel.ShowHistory();
+
+    /// <summary>历史页「刷新」：别处可能刚 push 了一批提交。</summary>
+    private async void OnRefreshHistoryClick(object sender, RoutedEventArgs e)
+        => await _viewModel.RefreshHistoryAsync();
+
+    /// <summary>历史页「加载更多」：追加更早的提交，不打断当前阅读位置。</summary>
+    private async void OnLoadMoreHistoryClick(object sender, RoutedEventArgs e)
+    {
+        var before = HistoryList.Items.Count;
+        await _viewModel.LoadMoreHistoryAsync();
+
+        // 滚到**第一条新加载的**提交：滚到末尾会一下跳过整整一页，用户还得往回翻
+        if (HistoryList.Items.Count > before)
+        {
+            HistoryList.ScrollIntoView(HistoryList.Items[before]);
+        }
+    }
+
     /// <summary>变更页「刷新」：工作区可能刚在别的工具里被改过。</summary>
     private async void OnRefreshChangesClick(object sender, RoutedEventArgs e)
         => await _viewModel.RefreshChangesAsync();

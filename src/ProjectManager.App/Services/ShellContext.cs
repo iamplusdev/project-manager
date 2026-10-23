@@ -74,6 +74,9 @@ public sealed class ShellContext
     /// <summary>Git 工作台编排（变更清单 / 差异 / 暂存 / 提交）。</summary>
     public required GitWorkspaceService Workspaces { get; init; }
 
+    /// <summary>提交历史编排（分页 / 相对时间 / 提交详情）。</summary>
+    public required GitHistoryService History { get; init; }
+
     public bool CanScaffold => Templates.Count > 0;
 
     /// <summary>

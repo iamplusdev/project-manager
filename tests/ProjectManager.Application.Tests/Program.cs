@@ -10,6 +10,7 @@ try
     ComponentScannerTests.Run();
     GitStatusTests.Run();
     GitWorkspaceTests.Run();
+    GitHistoryTests.Run();
     RepositoryOverviewTests.Run();
     TemplateUpgradeTests.Run();
     TemplateLibraryTests.Run();

@@ -79,6 +79,7 @@ public static class Bootstrapper
             Repositories = new RepositoryOverview(git),
             Git = git,
             Workspaces = new GitWorkspaceService(git),
+            History = new GitHistoryService(git),
             Theme = theme,
             Repository = repository,
         };
